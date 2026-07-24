@@ -1,3 +1,5 @@
+
+
 process.env.DOTENVX_LOG_LEVEL = 'error';
 process.env.DOTENVX_QUIET = 'true';
 
@@ -11,14 +13,21 @@ import { connectDB } from './config/db.js';
 import { initializeChatSockets } from './sockets/chatSocket.js';
 import { initializeCallSockets } from './sockets/callSocket.js';
 
+
+
+
 const PORT = process.env.PORT || 3000;
 let httpServer;
+
+
 
 // ! handle uncaught exceptions
 process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err);
     process.exit(1);
 });
+
+
 
 
 // * start server
@@ -55,6 +64,9 @@ const startServer = async () => {
 
 startServer();
 
+
+
+
 // ! handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
     console.error('Unhandled Rejection:', err);
@@ -64,3 +76,5 @@ process.on('unhandledRejection', (err) => {
         process.exit(1);
     }
 });
+
+
