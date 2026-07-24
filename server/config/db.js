@@ -11,10 +11,11 @@ export const connectDB = async () => {
         return;
     }
 
-    const mongoURI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/FYP-project';
+    const mongoURI = process.env.MONGO_URI;
 
     try {
         await mongoose.connect(mongoURI);
+        console.log('MongoDB connected');
 
         if (!isSeeded) {
             await seedDefaultUsers();

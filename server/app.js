@@ -1,3 +1,6 @@
+
+
+
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -5,11 +8,7 @@ import helmet from 'helmet';
 import mongoSanitize from 'express-mongo-sanitize';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import fs from 'fs';
 
-// Routes imports (user.route.js handles authentication & profile routes)
 import authRouter from './router/user.route.js';
 import adminRouter from './router/admin.route.js';
 import studentRouter from './router/student.route.js';
@@ -18,13 +17,17 @@ import connectionRouter from './router/connection.route.js';
 import chatRouter from './router/chat.route.js';
 import { errorMiddleware } from './middlewares/error.js';
 
+
+
+
+
 const app = express();
 
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// Data sanitization against NoSQL query injection (Express 5 compatible)
+// Data sanitization against NoSQL query injection
 app.use((req, res, next) => {
     if (req.body) mongoSanitize.sanitize(req.body);
     if (req.params) mongoSanitize.sanitize(req.params);
@@ -52,8 +55,6 @@ const apiLimiter = rateLimit({
     },
 });
 
-app.use('/api', apiLimiter);
-
 // CORS
 const allowedOrigins = [
     (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, ''),
@@ -71,14 +72,14 @@ app.use(cors({
     credentials: true,
 }));
 
+
+
+
+
+
+
 // Routes
-app.use('/api/v1/auth', authRouter);
-app.use('/api/v1/admin', adminRouter);
-app.use('/api/v1/student', studentRouter);
-app.use('/api/v1/teacher', teacherRouter);
-app.use('/api/v1/connections', connectionRouter);
-app.use('/api/v1/connection', connectionRouter); 
-app.use('/api/v1/chat', chatRouter);
+app.use('/api', apiLimiter);
 
 // Health check endpoint
 app.get('/api/v1/health', (req, res) => {
@@ -89,7 +90,20 @@ app.get('/api/v1/health', (req, res) => {
     });
 });
 
+app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/student', studentRouter);
+app.use('/api/v1/teacher', teacherRouter);
+app.use('/api/v1/connections', connectionRouter);
+app.use('/api/v1/connection', connectionRouter); 
+app.use('/api/v1/chat', chatRouter);
+
 // Centralized error middleware
 app.use(errorMiddleware);
 
+
+
+
+
 export default app;
+
