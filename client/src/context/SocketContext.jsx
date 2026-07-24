@@ -19,22 +19,35 @@ export const SocketProvider = ({ children, user }) => {
     const newSocket = io(socketUrl, {
       withCredentials: true,
       transports: ['websocket', 'polling'],
+      auth: { userId: user._id, user },
+      query: { userId: user._id },
     });
 
     socketRef.current = newSocket;
     setSocket(newSocket);
 
-    // Online Status Listeners
+    // Online Users Initial List Listener
+    newSocket.on('online_users_list', (userIds) => {
+      if (Array.isArray(userIds)) {
+        setOnlineUsers(new Set(userIds));
+      }
+    });
+
+    // Dynamic Online Status Listeners
     newSocket.on('user_online', ({ userId }) => {
-      setOnlineUsers((prev) => new Set([...prev, userId]));
+      if (userId) {
+        setOnlineUsers((prev) => new Set([...prev, userId]));
+      }
     });
 
     newSocket.on('user_offline', ({ userId }) => {
-      setOnlineUsers((prev) => {
-        const updated = new Set(prev);
-        updated.delete(userId);
-        return updated;
-      });
+      if (userId) {
+        setOnlineUsers((prev) => {
+          const updated = new Set(prev);
+          updated.delete(userId);
+          return updated;
+        });
+      }
     });
 
     // Incoming Call Popup Signal

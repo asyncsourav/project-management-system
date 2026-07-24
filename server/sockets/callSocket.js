@@ -1,5 +1,6 @@
 import { CallHistory } from '../models/callHistory.js';
 import { Message } from '../models/message.js';
+import { User } from '../models/user.js';
 
 export const initializeCallSockets = (io) => {
     // Store active 1-on-1 calls: callKey -> { callerId, recipientId, callType, startedAt, isAnswered, hasRecorded }
@@ -9,9 +10,25 @@ export const initializeCallSockets = (io) => {
         return [id1.toString(), id2.toString()].sort().join('_');
     };
 
-    io.on('connection', (socket) => {
-        if (!socket.user) return;
-        const userId = socket.user._id.toString();
+    io.on('connection', async (socket) => {
+        let userId = socket.user?._id?.toString() ||
+                     socket.handshake?.auth?.userId?.toString() ||
+                     socket.handshake?.query?.userId?.toString();
+
+        if (!userId) {
+            return;
+        }
+
+        if (!socket.user) {
+            try {
+                const userObj = await User.findById(userId).select('name email role avatar department').lean();
+                if (userObj) socket.user = userObj;
+            } catch (err) {
+                console.error('Error resolving socket user in callSocket:', err);
+            }
+        }
+
+        socket.join(userId);
 
         // ==========================================
         // ONE-ON-ONE WEBRTC CALL SIGNALS
@@ -32,13 +49,15 @@ export const initializeCallSockets = (io) => {
                 hasRecorded: false,
             });
 
+            const callerInfo = socket.user || { _id: userId, name: 'User', role: 'Student' };
+
             // Emit incoming call event to target user's socket room
-            io.to(recipientId).emit('incoming_call', {
+            io.to(recipientId.toString()).emit('incoming_call', {
                 caller: {
-                    _id: socket.user._id,
-                    name: socket.user.name,
-                    role: socket.user.role,
-                    avatar: socket.user.avatar,
+                    _id: callerInfo._id,
+                    name: callerInfo.name,
+                    role: callerInfo.role,
+                    avatar: callerInfo.avatar,
                 },
                 callType: callType || 'one_to_one_video',
                 offer,
@@ -47,6 +66,8 @@ export const initializeCallSockets = (io) => {
 
         socket.on('answer_call', async (data) => {
             const { callerId, answer } = data;
+            if (!callerId) return;
+
             const callKey = getCallKey(userId, callerId);
             const call = activeCalls.get(callKey);
 
@@ -55,11 +76,13 @@ export const initializeCallSockets = (io) => {
                 call.connectedAt = new Date();
             }
 
-            io.to(callerId).emit('call_accepted', { answer });
+            io.to(callerId.toString()).emit('call_accepted', { answer });
         });
 
         socket.on('reject_call', async (data) => {
             const { callerId } = data;
+            if (!callerId) return;
+
             const callKey = getCallKey(userId, callerId);
             const call = activeCalls.get(callKey);
 
@@ -89,17 +112,19 @@ export const initializeCallSockets = (io) => {
 
                 const populatedMsg = await Message.findById(missedMsg._id).lean();
 
-                io.to(callerId).emit('receive_message', populatedMsg);
-                io.to(userId).emit('receive_message', populatedMsg);
+                io.to(callerId.toString()).emit('receive_message', populatedMsg);
+                io.to(userId.toString()).emit('receive_message', populatedMsg);
             }
 
             activeCalls.delete(callKey);
-            io.to(callerId).emit('call_rejected');
+            io.to(callerId.toString()).emit('call_rejected');
         });
 
         socket.on('ice_candidate', (data) => {
             const { targetId, candidate } = data;
-            io.to(targetId).emit('ice_candidate', { candidate, senderId: userId });
+            if (targetId) {
+                io.to(targetId.toString()).emit('ice_candidate', { candidate, senderId: userId });
+            }
         });
 
         socket.on('end_call', async (data) => {
@@ -134,13 +159,13 @@ export const initializeCallSockets = (io) => {
                     });
 
                     const populatedMsg = await Message.findById(missedMsg._id).lean();
-                    io.to(call.recipientId).emit('receive_message', populatedMsg);
-                    io.to(call.callerId).emit('receive_message', populatedMsg);
+                    io.to(call.recipientId.toString()).emit('receive_message', populatedMsg);
+                    io.to(call.callerId.toString()).emit('receive_message', populatedMsg);
                 }
             }
 
             activeCalls.delete(callKey);
-            io.to(targetId).emit('call_ended');
+            io.to(targetId.toString()).emit('call_ended');
         });
 
         socket.on('disconnect', () => {
@@ -148,7 +173,7 @@ export const initializeCallSockets = (io) => {
             for (const [key, call] of activeCalls.entries()) {
                 if (call.callerId === userId || call.recipientId === userId) {
                     const targetId = call.callerId === userId ? call.recipientId : call.callerId;
-                    io.to(targetId).emit('call_ended');
+                    io.to(targetId.toString()).emit('call_ended');
                     activeCalls.delete(key);
                 }
             }

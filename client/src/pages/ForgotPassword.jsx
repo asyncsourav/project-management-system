@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/axios';
-import { Mail, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Mail, ArrowLeft, CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react';
 
 export const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [resetUrl, setResetUrl] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -15,8 +16,11 @@ export const ForgotPassword = () => {
     setLoading(true);
 
     try {
-      await api.post('/auth/password/forgot', { email });
+      const res = await api.post('/auth/password/forgot', { email });
       setSubmitted(true);
+      if (res.data?.resetUrl) {
+        setResetUrl(res.data.resetUrl);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to request password reset link.');
     } finally {
@@ -49,12 +53,24 @@ export const ForgotPassword = () => {
         )}
 
         {submitted ? (
-          <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-center space-y-2">
-            <CheckCircle2 className="w-6 h-6 text-emerald-400 mx-auto" />
-            <p className="text-xs font-bold text-emerald-300">Reset Link Sent</p>
-            <p className="text-[11px] text-slate-400">
-              If an account associated with <b>{email}</b> exists, password reset instructions have been sent.
+          <div className="p-5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-center space-y-3">
+            <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto animate-bounce" />
+            <p className="text-sm font-bold text-emerald-300">Reset Instructions Processed</p>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              If an account associated with <b>{email}</b> exists, password reset instructions have been generated.
             </p>
+
+            {resetUrl && (
+              <div className="pt-2 border-t border-emerald-500/20 space-y-2">
+                <p className="text-[11px] text-indigo-400 font-semibold">Direct Reset Access Link:</p>
+                <a
+                  href={resetUrl}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition-all"
+                >
+                  Proceed to Reset Password <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            )}
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">

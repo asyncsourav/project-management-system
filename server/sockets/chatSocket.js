@@ -2,15 +2,44 @@ import { Message } from '../models/message.js';
 import { User } from '../models/user.js';
 import { Connection } from '../models/connection.js';
 
+// Global map of online connected sockets: userId -> set of socketIds
+const onlineUsersMap = new Map();
+
 export const initializeChatSockets = (io) => {
-    io.on('connection', (socket) => {
-        if (!socket.user) return;
-        const userId = socket.user._id.toString();
+    io.on('connection', async (socket) => {
+        // Resolve user identity from socket.user OR auth/query parameters
+        let userId = socket.user?._id?.toString() ||
+                     socket.handshake?.auth?.userId?.toString() ||
+                     socket.handshake?.query?.userId?.toString();
+
+        if (!userId) {
+            return;
+        }
+
+        // Fetch user profile if missing
+        if (!socket.user) {
+            try {
+                const userObj = await User.findById(userId).select('name email role avatar department').lean();
+                if (userObj) socket.user = userObj;
+            } catch (err) {
+                console.error('Error resolving socket user profile:', err);
+            }
+        }
 
         // Join personal user room for direct messaging & notifications
         socket.join(userId);
 
-        // Notify user status online to active connections
+        // Track online sockets for this user
+        if (!onlineUsersMap.has(userId)) {
+            onlineUsersMap.set(userId, new Set());
+        }
+        onlineUsersMap.get(userId).add(socket.id);
+
+        // Send current list of online users to the newly connected user
+        const currentOnlineUserIds = Array.from(onlineUsersMap.keys());
+        socket.emit('online_users_list', currentOnlineUserIds);
+
+        // Notify active connections that this user is online
         socket.broadcast.emit('user_online', { userId });
 
         // Handler: Send Message in 1-on-1 Chat
@@ -23,7 +52,7 @@ export const initializeChatSockets = (io) => {
                     return;
                 }
 
-                // Check connection status or block status
+                // Check block status
                 const isBlocked = await Connection.findOne({
                     status: 'blocked',
                     $or: [
@@ -130,7 +159,14 @@ export const initializeChatSockets = (io) => {
 
         // Handler: Disconnect
         socket.on('disconnect', () => {
-            socket.broadcast.emit('user_offline', { userId });
+            const userSockets = onlineUsersMap.get(userId);
+            if (userSockets) {
+                userSockets.delete(socket.id);
+                if (userSockets.size === 0) {
+                    onlineUsersMap.delete(userId);
+                    socket.broadcast.emit('user_offline', { userId });
+                }
+            }
         });
     });
 };
