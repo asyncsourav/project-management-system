@@ -145,11 +145,19 @@ export const getConversationMessages = asyncHandler(async (req, res, next) => {
         .limit(Number(limit))
         .lean();
 
-    // Mark messages as read when opening room
-    await Message.updateMany(
+    // Mark messages as read when opening room and notify sender
+    const updateResult = await Message.updateMany(
         { sender: partnerId, recipient: currentUserId, isRead: false },
         { $set: { isRead: true } }
     );
+
+    if (updateResult.modifiedCount > 0) {
+        const io = req.app.get('io');
+        if (io) {
+            io.to(partnerId.toString()).emit('messages_read', { recipientId: currentUserId, readerId: currentUserId });
+            io.to(partnerId.toString()).emit('messages_read_by_recipient', { recipientId: currentUserId, readerId: currentUserId });
+        }
+    }
 
     const totalMessages = await Message.countDocuments({
         $or: [
@@ -223,6 +231,25 @@ export const reactToMessage = asyncHandler(async (req, res, next) => {
         .populate('recipient', 'name avatar role department')
         .populate('reactions.user', 'name')
         .lean();
+
+    const io = req.app.get('io');
+    if (io) {
+        const otherUser = message.sender.toString() === currentUserId.toString()
+            ? message.recipient.toString()
+            : message.sender.toString();
+
+        const payload = {
+            messageId: messageId.toString(),
+            _id: messageId.toString(),
+            reactions: updatedMessage.reactions,
+            message: updatedMessage,
+        };
+
+        io.to(otherUser).emit('message_reaction_updated', payload);
+        io.to(otherUser).emit('reaction_updated', payload);
+        io.to(currentUserId.toString()).emit('message_reaction_updated', payload);
+        io.to(currentUserId.toString()).emit('reaction_updated', payload);
+    }
 
     res.status(200).json({
         success: true,

@@ -222,10 +222,10 @@ export const getAllProjects = asyncHandler(async (req, res, next) => {
 // * Admin Review Proposal (Approve / Reject)
 export const reviewProposalAdmin = asyncHandler(async (req, res, next) => {
     const { projectId } = req.params;
-    const { action } = req.body; // 'approved' or 'rejected'
+    const action = req.body.action || req.body.status;
 
     if (!['approved', 'rejected'].includes(action)) {
-        return next(new ErrorHandler('Invalid action specified', 400));
+        return next(new ErrorHandler('Invalid action specified (must be approved or rejected)', 400));
     }
 
     const project = await Project.findById(projectId);
@@ -234,18 +234,22 @@ export const reviewProposalAdmin = asyncHandler(async (req, res, next) => {
     }
 
     project.status = action;
+    if (req.body.remarks) {
+        project.adminRemarks = req.body.remarks;
+    }
     await project.save();
 
     res.status(200).json({
         success: true,
-        message: `Project proposal ${action} by Admin`,
+        message: `Project proposal ${action} by Admin successfully`,
         data: { project },
     });
 });
 
 // * Assign Supervisor to Student Project
 export const assignSupervisor = asyncHandler(async (req, res, next) => {
-    const { projectId, teacherId } = req.body;
+    const { projectId } = req.body;
+    const teacherId = req.body.teacherId || req.body.supervisorId;
 
     if (!projectId || !teacherId) {
         return next(new ErrorHandler('Project ID and Teacher ID are required', 400));

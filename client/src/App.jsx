@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider, useSocket } from './context/SocketContext';
 
@@ -34,8 +34,9 @@ import { InstantChat } from './pages/InstantChat';
 
 // Global Call Overlay component to display incoming/active call popup anywhere in app
 const GlobalCallOverlay = () => {
-  const { incomingCall, activeCall, socket } = useSocket();
+  const { incomingCall, activeCall, endCall, rejectCall, socket } = useSocket();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   if (!incomingCall && !activeCall) return null;
 
@@ -53,12 +54,23 @@ const GlobalCallOverlay = () => {
         offer: incomingCall.offer,
       };
 
+  const handleClose = () => {
+    if (activeCall?.partner?._id) {
+      endCall(activeCall.partner._id);
+    } else if (incomingCall?.caller?._id) {
+      rejectCall();
+    } else {
+      endCall(null);
+    }
+    navigate('/chat');
+  };
+
   return (
     <CallModal
       socket={socket}
       currentUser={user}
       activeCall={currentCallData}
-      onCloseCall={() => {}}
+      onCloseCall={handleClose}
     />
   );
 };

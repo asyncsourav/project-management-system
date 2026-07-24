@@ -202,25 +202,39 @@ export const InstantChat = () => {
       });
     };
 
-    const handleMessagesRead = ({ readerId }) => {
-      if (selectedFriend && selectedFriend._id === readerId) {
+    const handleMessagesRead = (data) => {
+      const readerId = data?.readerId || data?.recipientId;
+      if (selectedFriend && (selectedFriend._id === readerId || selectedFriend._id?.toString() === readerId?.toString())) {
         setMessages((prev) => prev.map((m) => ({ ...m, isRead: true })));
       }
     };
 
-    const handleReactionUpdated = ({ messageId, reactions }) => {
-      setMessages((prev) =>
-        prev.map((m) => (m._id === messageId ? { ...m, reactions } : m))
-      );
+    const handleReactionUpdated = (data) => {
+      const targetMsgId = data?.messageId || data?._id || data?.message?._id;
+      const updatedReactions = data?.reactions || data?.message?.reactions || [];
+
+      if (targetMsgId) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m._id?.toString() === targetMsgId?.toString()
+              ? { ...m, reactions: updatedReactions }
+              : m
+          )
+        );
+      }
     };
 
     socket.on('receive_message', handleReceiveMessage);
     socket.on('messages_read', handleMessagesRead);
+    socket.on('messages_read_by_recipient', handleMessagesRead);
+    socket.on('message_reaction_updated', handleReactionUpdated);
     socket.on('reaction_updated', handleReactionUpdated);
 
     return () => {
       socket.off('receive_message', handleReceiveMessage);
       socket.off('messages_read', handleMessagesRead);
+      socket.off('messages_read_by_recipient', handleMessagesRead);
+      socket.off('message_reaction_updated', handleReactionUpdated);
       socket.off('reaction_updated', handleReactionUpdated);
     };
   }, [socket, selectedFriend, user]);
@@ -726,11 +740,11 @@ export const InstantChat = () => {
                             <div className="flex items-center justify-end gap-1.5 text-[10px] opacity-75 pt-1">
                               <span>{formatMessageTime(msg.createdAt)}</span>
                               {isSelf && (
-                                <span>
+                                <span className="flex items-center">
                                   {msg.isRead ? (
-                                    <CheckCheck className="w-3.5 h-3.5 text-emerald-300" />
+                                    <CheckCheck className="w-3.5 h-3.5 text-sky-300 font-bold" title="Read" />
                                   ) : (
-                                    <Check className="w-3.5 h-3.5" />
+                                    <Check className="w-3.5 h-3.5 opacity-70" title="Sent" />
                                   )}
                                 </span>
                               )}

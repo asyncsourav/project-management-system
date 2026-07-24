@@ -84,8 +84,8 @@ export const initializeChatSockets = (io) => {
                     .lean();
 
                 // Emit real-time message to recipient and sender
-                io.to(recipientId).emit('receive_message', populatedMessage);
-                io.to(userId).emit('receive_message', populatedMessage);
+                io.to(recipientId.toString()).emit('receive_message', populatedMessage);
+                io.to(userId.toString()).emit('receive_message', populatedMessage);
 
                 if (callback) callback({ success: true, message: populatedMessage });
             } catch (err) {
@@ -105,7 +105,9 @@ export const initializeChatSockets = (io) => {
                     { $set: { isRead: true } }
                 );
 
-                io.to(senderId).emit('messages_read_by_recipient', { recipientId: userId });
+                // Notify original message sender that messages have been read
+                io.to(senderId.toString()).emit('messages_read', { recipientId: userId, readerId: userId });
+                io.to(senderId.toString()).emit('messages_read_by_recipient', { recipientId: userId, readerId: userId });
             } catch (err) {
                 console.error('Socket mark_read error:', err);
             }
@@ -137,8 +139,18 @@ export const initializeChatSockets = (io) => {
                     .lean();
 
                 const otherUser = message.sender.toString() === userId ? message.recipient.toString() : message.sender.toString();
-                io.to(otherUser).emit('message_reaction_updated', updated);
-                io.to(userId).emit('message_reaction_updated', updated);
+                const reactionPayload = {
+                    messageId: messageId.toString(),
+                    _id: messageId.toString(),
+                    reactions: updated.reactions,
+                    message: updated,
+                };
+
+                io.to(otherUser.toString()).emit('message_reaction_updated', reactionPayload);
+                io.to(otherUser.toString()).emit('reaction_updated', reactionPayload);
+
+                io.to(userId.toString()).emit('message_reaction_updated', reactionPayload);
+                io.to(userId.toString()).emit('reaction_updated', reactionPayload);
             } catch (err) {
                 console.error('Socket toggle_reaction error:', err);
             }
@@ -147,13 +159,13 @@ export const initializeChatSockets = (io) => {
         // Handler: Typing Indicator
         socket.on('typing_start', ({ recipientId }) => {
             if (recipientId) {
-                io.to(recipientId).emit('user_typing', { userId });
+                io.to(recipientId.toString()).emit('user_typing', { userId });
             }
         });
 
         socket.on('typing_stop', ({ recipientId }) => {
             if (recipientId) {
-                io.to(recipientId).emit('user_stop_typing', { userId });
+                io.to(recipientId.toString()).emit('user_stop_typing', { userId });
             }
         });
 

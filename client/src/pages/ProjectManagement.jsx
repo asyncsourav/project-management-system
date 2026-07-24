@@ -55,6 +55,7 @@ export const ProjectManagement = () => {
     try {
       const res = await api.post('/admin/assign-supervisor', {
         projectId: selectedProject._id,
+        teacherId: selectedTeacherId,
         supervisorId: selectedTeacherId,
       });
       setActionMsg(res.data.message || 'Supervisor assigned successfully.');
@@ -84,6 +85,7 @@ export const ProjectManagement = () => {
 
     try {
       const res = await api.put(`/admin/projects/${reviewProject._id}/review`, {
+        action: overrideStatus,
         status: overrideStatus,
         remarks,
       });

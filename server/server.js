@@ -39,6 +39,8 @@ const startServer = async () => {
             },
         });
 
+        app.set('io', io);
+
         initializeChatSockets(io);
         initializeCallSockets(io);
 
