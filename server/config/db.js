@@ -1,8 +1,14 @@
+
+
+
 import dotenv from 'dotenv';
 dotenv.config({ quiet: true });
 
 import mongoose from 'mongoose';
 import { seedDefaultUsers } from './seed.js';
+
+
+
 
 let isSeeded = false;
 
@@ -25,3 +31,5 @@ export const connectDB = async () => {
         throw error;
     }
 };
+
+

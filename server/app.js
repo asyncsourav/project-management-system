@@ -81,6 +81,14 @@ app.use(cors({
 // Routes
 app.use('/api', apiLimiter);
 
+app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/student', studentRouter);
+app.use('/api/v1/teacher', teacherRouter);
+app.use('/api/v1/connections', connectionRouter);
+app.use('/api/v1/connection', connectionRouter); 
+app.use('/api/v1/chat', chatRouter);
+
 // Health check endpoint
 app.get('/api/v1/health', (req, res) => {
     res.status(200).json({
@@ -89,14 +97,6 @@ app.get('/api/v1/health', (req, res) => {
         timestamp: new Date().toISOString(),
     });
 });
-
-app.use('/api/v1/auth', authRouter);
-app.use('/api/v1/admin', adminRouter);
-app.use('/api/v1/student', studentRouter);
-app.use('/api/v1/teacher', teacherRouter);
-app.use('/api/v1/connections', connectionRouter);
-app.use('/api/v1/connection', connectionRouter); 
-app.use('/api/v1/chat', chatRouter);
 
 // Centralized error middleware
 app.use(errorMiddleware);
