@@ -58,20 +58,16 @@ export const CallModal = ({
     if (localStreamRef.current) return localStreamRef.current;
 
     let stream;
+    const constraints = isVideoCall ? { audio: true, video: true } : { audio: true };
+
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: isVideoCall ? true : false,
-      });
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
     } catch (err) {
-      console.warn('Could not acquire requested media stream, attempting fallback:', err);
+      console.warn('Primary media constraints failed, trying audio-only fallback:', err);
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: false,
-        });
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       } catch (audioErr) {
-        console.error('Failed to acquire audio stream:', audioErr);
+        console.error('All media stream attempts failed:', audioErr);
         throw audioErr;
       }
     }
@@ -168,19 +164,12 @@ export const CallModal = ({
       }
     } catch (err) {
       console.error('Error starting outgoing call:', err);
-      cleanupCall();
-      if (onCloseCall) onCloseCall(false);
     }
   };
 
   // Receiver side: Accept Incoming Call
   const handleAcceptCall = async () => {
     try {
-      if (!activeCall?.offer) {
-        alert('Missing call offer data');
-        return;
-      }
-
       if (onAcceptCall) {
         onAcceptCall();
       }
@@ -190,7 +179,7 @@ export const CallModal = ({
       const stream = await initLocalStream();
       const pc = createPeerConnection(stream);
 
-      if (pc.signalingState !== 'stable') {
+      if (activeCall?.offer && pc.signalingState !== 'stable') {
         await pc.setRemoteDescription(new RTCSessionDescription(activeCall.offer));
       }
 
@@ -205,9 +194,7 @@ export const CallModal = ({
         });
       }
     } catch (err) {
-      console.error('Failed to accept incoming call:', err);
-      cleanupCall();
-      if (onCloseCall) onCloseCall(false);
+      console.error('Error during handleAcceptCall WebRTC setup:', err);
     }
   };
 
