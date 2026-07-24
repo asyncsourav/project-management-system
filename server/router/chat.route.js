@@ -8,11 +8,18 @@ router.use(isAuthenticated);
 
 router.get('/friends', chatController.getConnectedFriends);
 router.post('/send', chatController.sendMessage);
+
+// Call History Endpoints
 router.get('/call-history', chatController.getCallHistory);
 router.delete('/call-history/clear-all', chatController.clearAllCallHistory);
+router.delete('/call-history/clear', chatController.clearAllCallHistory);
+router.delete('/call-history', chatController.clearAllCallHistory);
 router.delete('/call-history/:historyId', chatController.deleteCallHistoryRecord);
+
+// Conversation Endpoints
 router.get('/messages/:partnerId', chatController.getConversationMessages);
 router.delete('/clear-chat/:partnerId', chatController.clearChat);
+router.delete('/clear/:partnerId', chatController.clearChat);
 router.post('/messages/:messageId/react', chatController.reactToMessage);
 
 export default router;

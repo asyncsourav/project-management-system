@@ -104,6 +104,7 @@ const GlobalCallOverlay = () => {
 
       {/* Primary Call Modal */}
       <CallModal
+        key={currentCallData.partner?._id || 'global-call-modal'}
         socket={socket}
         currentUser={user}
         activeCall={currentCallData}

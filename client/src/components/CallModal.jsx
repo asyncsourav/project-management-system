@@ -39,6 +39,8 @@ export const CallModal = ({
       startOutgoingCall();
     } else if (activeCall?.mode === 'incoming') {
       setCallState('incoming');
+    } else if (activeCall?.mode === 'connected') {
+      setCallState('connected');
     }
 
     return () => {
@@ -47,9 +49,9 @@ export const CallModal = ({
         socket.off('call_ended', handleRemoteCallEnded);
         socket.off('call_rejected', handleRemoteCallRejected);
       }
-      cleanupCall();
+      // Note: cleanupCall is called explicitly inside hangUp to prevent incidental re-render unmounts from cutting active calls
     };
-  }, []);
+  }, [activeCall?.partner?._id, activeCall?.mode]);
 
   // Initialize Media Stream with graceful fallback if camera is unavailable
   const initLocalStream = async () => {

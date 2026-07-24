@@ -398,7 +398,7 @@ export const InstantChat = () => {
 
   const handleClearAllCallHistory = async () => {
     try {
-      await api.delete('/chat/call-history');
+      await api.delete('/chat/call-history/clear-all');
       setCallHistory([]);
     } catch (err) {
       console.error('Error clearing call history:', err);
@@ -411,7 +411,7 @@ export const InstantChat = () => {
     if (!window.confirm(`Are you sure you want to clear chat history with ${selectedFriend.name}?`)) return;
 
     try {
-      await api.delete(`/chat/clear/${selectedFriend._id}`);
+      await api.delete(`/chat/clear-chat/${selectedFriend._id}`);
       setMessages([]);
     } catch (err) {
       console.error('Failed to clear chat:', err);
@@ -426,31 +426,31 @@ export const InstantChat = () => {
   );
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col bg-slate-950 text-slate-100 overflow-hidden font-sans">
+    <div className="h-[calc(100vh-4rem)] flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-300">
       {/* Call History Modal */}
       {showCallHistory && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 border border-slate-800">
-            <div className="flex justify-between items-center pb-3 border-b border-slate-800">
-              <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-                <History className="w-4 h-4 text-indigo-400" /> Call History Logs
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 border border-slate-200 dark:border-slate-800">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <History className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> Call History Logs
               </h3>
               <div className="flex items-center gap-2">
                 {callHistory.length > 0 && (
                   <button
                     onClick={handleClearAllCallHistory}
-                    className="px-2.5 py-1 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1"
+                    className="px-2.5 py-1 bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1"
                   >
                     <Trash className="w-3.5 h-3.5" /> Clear All Logs
                   </button>
                 )}
-                <button onClick={() => setShowCallHistory(false)} className="text-slate-400 hover:text-white transition-colors">
+                <button onClick={() => setShowCallHistory(false)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            <div className="max-h-96 overflow-y-auto divide-y divide-slate-800 space-y-1">
+            <div className="max-h-96 overflow-y-auto divide-y divide-slate-200 dark:divide-slate-800 space-y-1">
               {historyLoading ? (
                 <div className="p-8 flex justify-center">
                   <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
@@ -461,17 +461,17 @@ export const InstantChat = () => {
                 callHistory.map((item) => (
                   <div key={item._id} className="py-3 flex items-center justify-between text-xs">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-bold border border-slate-700">
-                        {item.callType === 'one_to_one_video' ? <Video className="w-4 h-4 text-indigo-400" /> : <Phone className="w-4 h-4 text-emerald-400" />}
+                      <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-300 font-bold border border-slate-200 dark:border-slate-700">
+                        {item.callType === 'one_to_one_video' ? <Video className="w-4 h-4 text-indigo-500" /> : <Phone className="w-4 h-4 text-emerald-500" />}
                       </div>
                       <div>
-                        <p className="font-bold text-slate-200">{item.title || '1-on-1 Call'}</p>
-                        <p className="text-[10px] text-slate-400">{formatCallTime(item.startedAt)}</p>
+                        <p className="font-bold text-slate-900 dark:text-slate-200">{item.title || '1-on-1 Call'}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400">{formatCallTime(item.startedAt)}</p>
                       </div>
                     </div>
                     <button
                       onClick={() => handleDeleteCallRecord(item._id)}
-                      className="p-1.5 text-slate-400 hover:text-rose-400 transition-colors"
+                      className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"
                       title="Delete Log"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -488,18 +488,18 @@ export const InstantChat = () => {
       <div className="flex-1 flex overflow-hidden">
         {/* LEFT PANEL: Contacts & Conversations */}
         <div
-          className={`w-full md:w-80 bg-slate-900 border-r border-slate-800 flex flex-col justify-between ${
+          className={`w-full md:w-80 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between ${
             selectedFriend ? 'hidden md:flex' : 'flex'
           }`}
         >
-          <div className="p-4 border-b border-slate-800 space-y-3">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-800 space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-extrabold text-slate-100 flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-indigo-400" /> Conversations
+              <h2 className="text-sm font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> Conversations
               </h2>
               <button
                 onClick={openCallHistoryModal}
-                className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs transition-all shadow-sm"
+                className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs transition-all shadow-sm"
                 title="View Call History"
               >
                 <History className="w-4 h-4" />
@@ -508,24 +508,24 @@ export const InstantChat = () => {
 
             {/* Search Input */}
             <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3.5 top-3 text-slate-400" />
+              <Search className="w-3.5 h-3.5 absolute left-3.5 top-3 text-slate-400 dark:text-slate-500" />
               <input
                 type="text"
                 placeholder="Search contacts..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
 
             {/* Role Filter Switcher */}
-            <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-[11px] font-semibold">
+            <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-semibold">
               {['All', 'Teacher', 'Student'].map((role) => (
                 <button
                   key={role}
                   onClick={() => setRoleFilter(role)}
                   className={`flex-1 py-1 rounded-lg text-center transition-all ${
-                    roleFilter === role ? 'bg-indigo-600 text-white shadow-sm font-bold' : 'text-slate-400 hover:text-slate-200'
+                    roleFilter === role ? 'bg-indigo-600 text-white shadow-sm font-bold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                   }`}
                 >
                   {role}
@@ -535,13 +535,13 @@ export const InstantChat = () => {
           </div>
 
           {/* Contact List */}
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-800/50">
+          <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/50">
             {friendsLoading ? (
               <div className="p-8 flex justify-center">
                 <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
               </div>
             ) : filteredFriends.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-500">
+              <div className="p-8 text-center text-xs text-slate-500 dark:text-slate-400">
                 No connected contacts found. Connect with teachers or students to start chatting!
               </div>
             ) : (
@@ -555,8 +555,8 @@ export const InstantChat = () => {
                     onClick={() => setSelectedFriend(friend)}
                     className={`p-3.5 flex items-center gap-3 cursor-pointer transition-all ${
                       isSelected
-                        ? 'bg-indigo-600/10 border-l-4 border-indigo-500 text-slate-100'
-                        : 'hover:bg-slate-800/50 text-slate-300'
+                        ? 'bg-indigo-50 dark:bg-indigo-600/10 border-l-4 border-indigo-600 text-slate-900 dark:text-slate-100'
+                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-300'
                     }`}
                   >
                     {/* Avatar & Online Dot */}
@@ -565,8 +565,8 @@ export const InstantChat = () => {
                         {friend.name?.charAt(0) || 'U'}
                       </div>
                       <span
-                        className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 ${
-                          isOnline ? 'bg-emerald-500' : 'bg-slate-600'
+                        className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white dark:border-slate-900 ${
+                          isOnline ? 'bg-emerald-500' : 'bg-slate-400 dark:bg-slate-600'
                         }`}
                       />
                     </div>
@@ -574,15 +574,15 @@ export const InstantChat = () => {
                     {/* Contact Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline">
-                        <p className="text-xs font-bold truncate text-slate-200">{friend.name}</p>
+                        <p className="text-xs font-bold truncate text-slate-900 dark:text-slate-200">{friend.name}</p>
                         {friend.lastMessageDate && (
-                          <span className="text-[10px] text-slate-500">
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500">
                             {formatMessageTime(friend.lastMessageDate)}
                           </span>
                         )}
                       </div>
                       <div className="flex items-center justify-between mt-0.5">
-                        <p className="text-[11px] text-slate-400 truncate max-w-[140px]">
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[140px]">
                           {friend.lastMessage || `${friend.role || 'Contact'}`}
                         </p>
                         {friend.unreadCount > 0 && (
@@ -601,13 +601,13 @@ export const InstantChat = () => {
 
         {/* RIGHT PANEL: Chat Conversation Screen */}
         {selectedFriend ? (
-          <div className="flex-1 flex flex-col bg-slate-950">
+          <div className="flex-1 flex flex-col bg-slate-50 dark:bg-slate-950">
             {/* Chat Room Top Bar */}
-            <div className="p-3.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between shadow-sm">
+            <div className="p-3.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setSelectedFriend(null)}
-                  className="md:hidden p-1.5 text-slate-400 hover:text-white"
+                  className="md:hidden p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
@@ -616,21 +616,21 @@ export const InstantChat = () => {
                     {selectedFriend.name?.charAt(0) || 'U'}
                   </div>
                   <span
-                    className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 ${
-                      onlineUsers.has(selectedFriend._id) ? 'bg-emerald-500' : 'bg-slate-600'
+                    className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white dark:border-slate-900 ${
+                      onlineUsers.has(selectedFriend._id) ? 'bg-emerald-500' : 'bg-slate-400 dark:bg-slate-600'
                     }`}
                   />
                 </div>
                 <div>
-                  <h3 className="text-xs font-extrabold text-slate-100 flex items-center gap-2">
+                  <h3 className="text-xs font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                     {selectedFriend.name}
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-indigo-400 border border-slate-700 flex items-center gap-1">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-slate-200 dark:border-slate-700 flex items-center gap-1">
                       {selectedFriend.role === 'Teacher' ? <Briefcase className="w-3 h-3" /> : <GraduationCap className="w-3 h-3" />}
                       {selectedFriend.role}
                     </span>
                   </h3>
-                  <p className="text-[10px] text-emerald-400 font-semibold mt-0.5 flex items-center gap-1">
-                    <span className={`w-1.5 h-1.5 rounded-full ${onlineUsers.has(selectedFriend._id) ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`} />
+                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5 flex items-center gap-1">
+                    <span className={`w-1.5 h-1.5 rounded-full ${onlineUsers.has(selectedFriend._id) ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
                     {onlineUsers.has(selectedFriend._id) ? 'Online' : 'Offline'}
                   </p>
                 </div>
@@ -640,21 +640,21 @@ export const InstantChat = () => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => startCall('one_to_one_voice')}
-                  className="p-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded-xl transition-all shadow-sm"
+                  className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 rounded-xl transition-all shadow-sm"
                   title="Start Voice Call"
                 >
                   <Phone className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => startCall('one_to_one_video')}
-                  className="p-2 bg-slate-800 hover:bg-slate-700 text-indigo-400 rounded-xl transition-all shadow-sm"
+                  className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400 rounded-xl transition-all shadow-sm"
                   title="Start Video Call"
                 >
                   <Video className="w-4 h-4" />
                 </button>
                 <button
                   onClick={handleClearChatHistory}
-                  className="p-2 bg-slate-800 hover:bg-slate-700 text-rose-400 rounded-xl transition-all shadow-sm"
+                  className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-rose-600 dark:text-rose-400 rounded-xl transition-all shadow-sm"
                   title="Clear Conversation"
                 >
                   <Eraser className="w-4 h-4" />
@@ -663,13 +663,13 @@ export const InstantChat = () => {
             </div>
 
             {/* Chat Timeline Stream */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-950/60">
+            <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-100/70 dark:bg-slate-950/60">
               {messagesLoading ? (
                 <div className="p-8 flex justify-center">
                   <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
               ) : messages.length === 0 ? (
-                <div className="p-12 text-center text-slate-500 text-xs font-semibold">
+                <div className="p-12 text-center text-slate-400 dark:text-slate-500 text-xs font-semibold">
                   No messages yet. Send a greeting to start chatting with {selectedFriend.name}!
                 </div>
               ) : (
@@ -683,7 +683,7 @@ export const InstantChat = () => {
                     <React.Fragment key={msg._id || idx}>
                       {showDayDivider && (
                         <div className="flex justify-center my-3">
-                          <span className="px-3 py-1 bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-bold rounded-full uppercase tracking-wider shadow-sm">
+                          <span className="px-3 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold rounded-full uppercase tracking-wider shadow-sm">
                             {currentDateHeader}
                           </span>
                         </div>
@@ -695,10 +695,10 @@ export const InstantChat = () => {
                       >
                         {/* Bubble */}
                         <div
-                          className={`max-w-[75%] p-3.5 rounded-2xl text-xs space-y-1.5 shadow-md relative transition-all ${
+                          className={`max-w-[75%] p-3.5 rounded-2xl text-xs space-y-1.5 shadow-sm relative transition-all ${
                             isSelf
                               ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-br-none'
-                              : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none'
+                              : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-200 rounded-bl-none'
                           }`}
                         >
                           {/* Replied Message Tag Quote */}
@@ -708,7 +708,7 @@ export const InstantChat = () => {
                               className={`p-2 rounded-xl text-[11px] cursor-pointer mb-1 border-l-4 transition-all hover:opacity-90 ${
                                 isSelf
                                   ? 'bg-indigo-700/80 border-indigo-300 text-indigo-100'
-                                  : 'bg-slate-950 border-indigo-500 text-slate-300'
+                                  : 'bg-slate-100 dark:bg-slate-950 border-indigo-500 text-slate-800 dark:text-slate-300'
                               }`}
                             >
                               <p className="font-bold flex items-center gap-1 text-[10px]">
@@ -727,7 +727,7 @@ export const InstantChat = () => {
                                 <button
                                   key={i}
                                   onClick={() => handleToggleEmoji(msg._id, r.emoji)}
-                                  className="px-2 py-0.5 bg-slate-950 hover:bg-slate-800 text-[11px] rounded-full border border-slate-800 text-slate-200 transition-all flex items-center gap-1"
+                                  className="px-2 py-0.5 bg-slate-100 dark:bg-slate-950 hover:bg-slate-200 dark:hover:bg-slate-800 text-[11px] rounded-full border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 transition-all flex items-center gap-1"
                                 >
                                   <span>{r.emoji}</span>
                                 </button>
@@ -753,7 +753,7 @@ export const InstantChat = () => {
                           <div
                             className={`hidden group-hover:flex absolute -top-8 ${
                               isSelf ? 'right-0' : 'left-0'
-                            } bg-slate-900 border border-slate-800 p-1.5 rounded-2xl shadow-xl gap-1.5 z-20 transition-all`}
+                            } bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 rounded-2xl shadow-xl gap-1.5 z-20 transition-all`}
                           >
                             {EMOJIS.slice(0, 6).map((emoji) => (
                               <button
@@ -769,7 +769,7 @@ export const InstantChat = () => {
                             <button
                               type="button"
                               onClick={() => setReplyToMessage(msg)}
-                              className="p-1 text-slate-400 hover:text-indigo-400 transition-colors"
+                              className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                               title="Reply"
                             >
                               <Reply className="w-3.5 h-3.5" />
@@ -784,7 +784,7 @@ export const InstantChat = () => {
 
               {/* Typing Indicator */}
               {isTyping && (
-                <div className="flex items-center gap-2 text-xs text-slate-400 font-semibold p-2">
+                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-semibold p-2">
                   <div className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
                   <span>{selectedFriend.name} is typing...</span>
                 </div>
@@ -794,25 +794,25 @@ export const InstantChat = () => {
 
             {/* Replied Message Preview Banner */}
             {replyToMessage && (
-              <div className="px-4 py-2 bg-slate-900 border-t border-slate-800 flex justify-between items-center text-xs text-slate-300">
+              <div className="px-4 py-2 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center text-xs text-slate-700 dark:text-slate-300">
                 <div className="flex items-center gap-2 min-w-0">
-                  <Reply className="w-4 h-4 text-indigo-400 shrink-0" />
+                  <Reply className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
                   <div className="truncate">
-                    <span className="font-bold text-indigo-400">Replying to {replyToMessage.sender?.name || 'User'}: </span>
+                    <span className="font-bold text-indigo-600 dark:text-indigo-400">Replying to {replyToMessage.sender?.name || 'User'}: </span>
                     <span className="opacity-90">{replyToMessage.content}</span>
                   </div>
                 </div>
-                <button onClick={() => setReplyToMessage(null)} className="text-slate-400 hover:text-white p-1">
+                <button onClick={() => setReplyToMessage(null)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white p-1">
                   <X className="w-4 h-4" />
                 </button>
               </div>
             )}
 
             {/* Bottom Message Input Form */}
-            <form onSubmit={handleSendMessage} className="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2 relative">
+            <form onSubmit={handleSendMessage} className="p-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2 relative">
               {/* Emoji Picker Popup */}
               {showEmojiPicker && (
-                <div className="absolute bottom-16 left-4 bg-slate-900 border border-slate-800 p-2.5 rounded-2xl shadow-2xl grid grid-cols-5 gap-2 z-30">
+                <div className="absolute bottom-16 left-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-2xl shadow-2xl grid grid-cols-5 gap-2 z-30">
                   {EMOJIS.map((emoji) => (
                     <button
                       key={emoji}
@@ -821,7 +821,7 @@ export const InstantChat = () => {
                         setNewMessage((prev) => prev + emoji);
                         setShowEmojiPicker(false);
                       }}
-                      className="p-2 hover:bg-slate-800 rounded-xl text-lg transition-transform hover:scale-125"
+                      className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-lg transition-transform hover:scale-125"
                     >
                       {emoji}
                     </button>
@@ -832,7 +832,7 @@ export const InstantChat = () => {
               <button
                 type="button"
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className="p-2.5 text-slate-400 hover:text-indigo-400 rounded-xl hover:bg-slate-800 transition-colors"
+                className="p-2.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 title="Add Emoji"
               >
                 <Smile className="w-5 h-5" />
@@ -843,7 +843,7 @@ export const InstantChat = () => {
                 placeholder={`Message ${selectedFriend.name}...`}
                 value={newMessage}
                 onChange={handleInputChange}
-                className="flex-1 bg-slate-950 border border-slate-800 rounded-2xl px-4 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="flex-1 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
 
               <button
@@ -856,8 +856,8 @@ export const InstantChat = () => {
             </form>
           </div>
         ) : (
-          <div className="hidden md:flex flex-1 items-center justify-center flex-col text-slate-500 gap-3">
-            <MessageSquare className="w-12 h-12 text-slate-700" />
+          <div className="hidden md:flex flex-1 items-center justify-center flex-col text-slate-400 dark:text-slate-500 gap-3">
+            <MessageSquare className="w-12 h-12 text-slate-300 dark:text-slate-700" />
             <p className="text-xs font-bold">Select a contact from the left list to start instant messaging.</p>
           </div>
         )}
