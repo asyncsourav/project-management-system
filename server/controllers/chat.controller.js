@@ -97,7 +97,8 @@ export const getConnectedFriends = asyncHandler(async (req, res, next) => {
 // * 2. Send Message (HTTP Endpoint Fallback)
 export const sendMessage = asyncHandler(async (req, res, next) => {
     const senderId = req.user._id;
-    const { recipientId, content } = req.body;
+    const { recipientId, content, replyToId, replyTo } = req.body;
+    const targetReplyTo = replyToId || replyTo;
 
     if (!recipientId || !content) {
         return next(new ErrorHandler('Recipient ID and message content are required', 400));
@@ -107,12 +108,17 @@ export const sendMessage = asyncHandler(async (req, res, next) => {
         sender: senderId,
         recipient: recipientId,
         content: content.trim(),
+        replyTo: targetReplyTo || null,
         isRead: false,
     });
 
     const populatedMessage = await Message.findById(message._id)
         .populate('sender', 'name avatar role department')
         .populate('recipient', 'name avatar role department')
+        .populate({
+            path: 'replyTo',
+            populate: { path: 'sender', select: 'name' },
+        })
         .populate('reactions.user', 'name')
         .lean();
 
@@ -139,6 +145,10 @@ export const getConversationMessages = asyncHandler(async (req, res, next) => {
     })
         .populate('sender', 'name avatar role department')
         .populate('recipient', 'name avatar role department')
+        .populate({
+            path: 'replyTo',
+            populate: { path: 'sender', select: 'name' },
+        })
         .populate('reactions.user', 'name')
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -229,6 +239,10 @@ export const reactToMessage = asyncHandler(async (req, res, next) => {
     const updatedMessage = await Message.findById(messageId)
         .populate('sender', 'name avatar role department')
         .populate('recipient', 'name avatar role department')
+        .populate({
+            path: 'replyTo',
+            populate: { path: 'sender', select: 'name' },
+        })
         .populate('reactions.user', 'name')
         .lean();
 

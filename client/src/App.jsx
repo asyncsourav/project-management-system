@@ -54,11 +54,13 @@ const GlobalCallOverlay = () => {
         offer: incomingCall.offer,
       };
 
-  const handleClose = () => {
-    if (activeCall?.partner?._id) {
-      endCall(activeCall.partner._id);
-    } else if (incomingCall?.caller?._id) {
-      rejectCall();
+  const handleClose = (emitSocket = true) => {
+    if (emitSocket) {
+      if (activeCall?.partner?._id) {
+        endCall(activeCall.partner._id);
+      } else if (incomingCall?.caller?._id) {
+        rejectCall();
+      }
     } else {
       endCall(null);
     }

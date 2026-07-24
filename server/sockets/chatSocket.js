@@ -45,7 +45,8 @@ export const initializeChatSockets = (io) => {
         // Handler: Send Message in 1-on-1 Chat
         socket.on('send_message', async (data, callback) => {
             try {
-                const { recipientId, content, mediaUrl, fileUrl, mediaType, fileName, fileSize } = data;
+                const { recipientId, content, mediaUrl, fileUrl, mediaType, fileName, fileSize, replyToId, replyTo } = data;
+                const targetReplyTo = replyToId || replyTo;
 
                 if (!recipientId || (!content && !mediaUrl && !fileUrl)) {
                     if (callback) callback({ success: false, error: 'Recipient and content or media required' });
@@ -70,6 +71,7 @@ export const initializeChatSockets = (io) => {
                     sender: userId,
                     recipient: recipientId,
                     content: content || '',
+                    replyTo: targetReplyTo || null,
                     mediaUrl: mediaUrl || fileUrl || '',
                     mediaType: mediaType || 'none',
                     fileName: fileName || '',
@@ -80,6 +82,10 @@ export const initializeChatSockets = (io) => {
                 const populatedMessage = await Message.findById(message._id)
                     .populate('sender', 'name avatar role department')
                     .populate('recipient', 'name avatar role department')
+                    .populate({
+                        path: 'replyTo',
+                        populate: { path: 'sender', select: 'name' },
+                    })
                     .populate('reactions.user', 'name')
                     .lean();
 
@@ -135,6 +141,10 @@ export const initializeChatSockets = (io) => {
                 const updated = await Message.findById(messageId)
                     .populate('sender', 'name avatar role department')
                     .populate('recipient', 'name avatar role department')
+                    .populate({
+                        path: 'replyTo',
+                        populate: { path: 'sender', select: 'name' },
+                    })
                     .populate('reactions.user', 'name')
                     .lean();
 

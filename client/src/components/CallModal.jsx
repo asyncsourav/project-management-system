@@ -153,7 +153,7 @@ export const CallModal = ({
     } catch (err) {
       console.error('Error starting outgoing call:', err);
       cleanupCall();
-      onCloseCall();
+      if (onCloseCall) onCloseCall(false);
     }
   };
 
@@ -187,7 +187,7 @@ export const CallModal = ({
     } catch (err) {
       console.error('Failed to accept incoming call:', err);
       cleanupCall();
-      onCloseCall();
+      if (onCloseCall) onCloseCall(false);
     }
   };
 
@@ -204,7 +204,7 @@ export const CallModal = ({
       socket.emit('end_call', { targetId: activeCall.partner._id });
     }
     cleanupCall();
-    onCloseCall();
+    if (onCloseCall) onCloseCall(false);
   };
 
   const toggleMute = () => {

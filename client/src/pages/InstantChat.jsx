@@ -300,6 +300,7 @@ export const InstantChat = () => {
           recipientId: selectedFriend._id,
           content,
           replyToId: replyToObj ? replyToObj._id : null,
+          replyTo: replyToObj ? replyToObj._id : null,
         },
         (response) => {
           if (response && response.success) {
@@ -315,6 +316,8 @@ export const InstantChat = () => {
         const res = await api.post('/chat/send', {
           recipientId: selectedFriend._id,
           content,
+          replyToId: replyToObj ? replyToObj._id : null,
+          replyTo: replyToObj ? replyToObj._id : null,
         });
         if (res.data?.data?.message) {
           updateUIWithSentMessage(res.data.data.message);
