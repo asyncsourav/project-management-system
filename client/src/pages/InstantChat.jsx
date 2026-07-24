@@ -3,7 +3,7 @@ import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import {
-  MessageSquare, Send, CheckCheck, Check, Reply, Users, Filter, Search, ArrowUp, AlertCircle, X, Phone, Video, History, Trash2, Smile, PhoneMissed, CornerDownRight, UserX, UserMinus, Eraser, ArrowLeft, Trash
+  MessageSquare, Send, CheckCheck, Check, Reply, Users, Search, X, Phone, Video, History, Trash2, Smile, Eraser, ArrowLeft, Trash, GraduationCap, Briefcase
 } from 'lucide-react';
 
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '🎉', '👏', '💯'];
@@ -53,7 +53,7 @@ const formatCallTime = (dateStr) => {
 
 export const InstantChat = () => {
   const { user } = useAuth();
-  const { socket, onlineUsers, initiateCall, markChatAsRead, setActiveChatUserId } = useSocket();
+  const { socket, onlineUsers, initiateCall, activeCall, endCall, markChatAsRead, setActiveChatUserId } = useSocket();
 
   // Connected friends state
   const [friends, setFriends] = useState([]);
@@ -66,17 +66,17 @@ export const InstantChat = () => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [replyToMessage, setReplyToMessage] = useState(null);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
   const [messagesLoading, setMessagesLoading] = useState(false);
-  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
 
-  // Call History Modal State
+  // Modals state
   const [showCallHistory, setShowCallHistory] = useState(false);
   const [callHistory, setCallHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const messagesEndRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
   // 1. Fetch Friends List
   useEffect(() => {
@@ -102,102 +102,76 @@ export const InstantChat = () => {
     }
   };
 
-  // 2. Fetch Conversation Messages when Selected Friend changes
+  // 2. Fetch Conversation Messages when Selected Friend Changes
   useEffect(() => {
-    if (!selectedFriend) {
-      setActiveChatUserId(null);
-      return;
-    }
+    if (!selectedFriend?._id) return;
 
     setActiveChatUserId(selectedFriend._id);
     markChatAsRead(selectedFriend._id);
-    setPage(1);
-    fetchMessages(selectedFriend._id, 1, false);
+    setReplyToMessage(null);
+    setShowEmojiPicker(false);
+    fetchConversationMessages(selectedFriend._id);
 
-    if (socket) {
+    if (socket && socket.connected) {
       socket.emit('mark_read', { senderId: selectedFriend._id });
     }
-  }, [selectedFriend]);
 
-  const fetchMessages = async (friendId, targetPage, isLoadMore = false) => {
+    return () => {
+      setActiveChatUserId(null);
+    };
+  }, [selectedFriend?._id]);
+
+  const fetchConversationMessages = async (friendId) => {
     try {
-      if (isLoadMore) setLoadingOlder(true);
-      else setMessagesLoading(true);
-
-      const res = await api.get(`/chat/messages/${friendId}`, {
-        params: { page: targetPage, limit: 30 },
-      });
-
-      const { messages: fetchedMsgs, pagination } = res.data.data;
-
-      if (isLoadMore) {
-        setMessages((prev) => {
-          const newUnique = fetchedMsgs.filter((m) => !prev.some((p) => p._id === m._id));
-          return [...newUnique, ...prev];
-        });
-      } else {
-        setMessages(fetchedMsgs);
-        scrollToBottom();
-      }
-
-      setHasMore(pagination.hasMore);
+      setMessagesLoading(true);
+      const res = await api.get(`/chat/messages/${friendId}?limit=100`);
+      const msgList = res.data.data.messages || [];
+      setMessages(msgList);
+      scrollToBottom();
     } catch (err) {
-      console.error('Error loading messages:', err);
+      console.error('Error fetching messages:', err);
     } finally {
       setMessagesLoading(false);
-      setLoadingOlder(false);
     }
   };
 
-  const loadOlderMessages = () => {
-    if (!selectedFriend || !hasMore || loadingOlder) return;
-    const nextPage = page + 1;
-    setPage(nextPage);
-    fetchMessages(selectedFriend._id, nextPage, true);
-  };
-
-  // 3. Socket Event Listeners for incoming real-time messages & reactions
+  // 3. Socket Event Listeners
   useEffect(() => {
     if (!socket) return;
 
-    const handleReceiveMessage = (msgData) => {
-      const senderId = msgData.sender?._id || msgData.sender;
-      const recipientId = msgData.recipient?._id || msgData.recipient;
+    const handleReceiveMessage = (msg) => {
+      const senderId = msg.sender?._id || msg.sender;
+      const recipientId = msg.recipient?._id || msg.recipient;
 
-      // Update messages stream if this message belongs to the open chat
+      // Update message list if current conversation active
       if (
         selectedFriend &&
         (senderId === selectedFriend._id || recipientId === selectedFriend._id)
       ) {
         setMessages((prev) => {
-          if (prev.some((m) => m._id === msgData._id)) return prev;
-          return [...prev, msgData];
+          if (prev.some((m) => m._id === msg._id)) return prev;
+          return [...prev, msg];
         });
         scrollToBottom();
 
-        if (senderId === selectedFriend._id) {
+        if (senderId === selectedFriend._id && socket.connected) {
           socket.emit('mark_read', { senderId: selectedFriend._id });
-          markChatAsRead(selectedFriend._id);
         }
       }
 
-      // Re-order contact list: move messaged contact to the VERY TOP of the list
-      const targetFriendId = senderId === user._id ? recipientId : senderId;
+      // Update last message in left contact list
       setFriends((prevFriends) => {
-        const targetFriend = prevFriends.find((f) => f._id === targetFriendId);
+        const partnerId = senderId === user._id ? recipientId : senderId;
+        const targetFriend = prevFriends.find((f) => f._id === partnerId);
         if (!targetFriend) return prevFriends;
-
-        const isSenderMe = senderId === user._id;
-        const isCurrentlyOpenChat = senderId === selectedFriend?._id;
 
         const updatedTarget = {
           ...targetFriend,
-          lastMessage: msgData.content,
-          lastMessageDate: msgData.createdAt,
-          unreadCount: (isSenderMe || isCurrentlyOpenChat) ? 0 : (targetFriend.unreadCount || 0) + 1,
+          lastMessage: msg.content,
+          lastMessageDate: msg.createdAt,
         };
 
-        const remaining = prevFriends.filter((f) => f._id !== targetFriendId);
+        const remaining = prevFriends.filter((f) => f._id !== partnerId);
         return [updatedTarget, ...remaining];
       });
     };
@@ -224,11 +198,25 @@ export const InstantChat = () => {
       }
     };
 
+    const handleUserTyping = ({ userId }) => {
+      if (selectedFriend && selectedFriend._id === userId) {
+        setIsTyping(true);
+      }
+    };
+
+    const handleUserStopTyping = ({ userId }) => {
+      if (selectedFriend && selectedFriend._id === userId) {
+        setIsTyping(false);
+      }
+    };
+
     socket.on('receive_message', handleReceiveMessage);
     socket.on('messages_read', handleMessagesRead);
     socket.on('messages_read_by_recipient', handleMessagesRead);
     socket.on('message_reaction_updated', handleReactionUpdated);
     socket.on('reaction_updated', handleReactionUpdated);
+    socket.on('user_typing', handleUserTyping);
+    socket.on('user_stop_typing', handleUserStopTyping);
 
     return () => {
       socket.off('receive_message', handleReceiveMessage);
@@ -236,6 +224,8 @@ export const InstantChat = () => {
       socket.off('messages_read_by_recipient', handleMessagesRead);
       socket.off('message_reaction_updated', handleReactionUpdated);
       socket.off('reaction_updated', handleReactionUpdated);
+      socket.off('user_typing', handleUserTyping);
+      socket.off('user_stop_typing', handleUserStopTyping);
     };
   }, [socket, selectedFriend, user]);
 
@@ -245,7 +235,7 @@ export const InstantChat = () => {
     }, 100);
   };
 
-  // Jump & Highlight Replied Message (Max 2 seconds highlight)
+  // Jump to Replied Message
   const handleJumpToMessage = (targetMsgId) => {
     if (!targetMsgId) return;
     const targetId = typeof targetMsgId === 'object' ? targetMsgId._id : targetMsgId;
@@ -259,7 +249,7 @@ export const InstantChat = () => {
     }
   };
 
-  // Send Message Handler (Dual mode: Socket primary + HTTP fallback)
+  // Send Message Handler
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedFriend) return;
@@ -269,6 +259,11 @@ export const InstantChat = () => {
 
     setNewMessage('');
     setReplyToMessage(null);
+    setShowEmojiPicker(false);
+
+    if (socket && socket.connected) {
+      socket.emit('typing_stop', { recipientId: selectedFriend._id });
+    }
 
     const updateUIWithSentMessage = (msgData) => {
       setMessages((prev) => {
@@ -277,7 +272,6 @@ export const InstantChat = () => {
       });
       scrollToBottom();
 
-      // Move current contact to top of left contact list
       setFriends((prevFriends) => {
         const targetFriend = prevFriends.find((f) => f._id === selectedFriend._id);
         if (!targetFriend) return prevFriends;
@@ -311,7 +305,6 @@ export const InstantChat = () => {
         }
       );
     } else {
-      // Fallback via REST API when socket is reconnecting or unavailable
       try {
         const res = await api.post('/chat/send', {
           recipientId: selectedFriend._id,
@@ -328,16 +321,29 @@ export const InstantChat = () => {
     }
   };
 
+  // Typing Handler
+  const handleInputChange = (e) => {
+    setNewMessage(e.target.value);
+    if (!socket || !selectedFriend) return;
+
+    socket.emit('typing_start', { recipientId: selectedFriend._id });
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit('typing_stop', { recipientId: selectedFriend._id });
+    }, 2000);
+  };
+
+  // Toggle Emoji Reaction
   const handleToggleEmoji = (messageId, emoji) => {
     if (!socket) return;
-    
-    // Optimistically update reactions state locally for instant snappy feedback
+
     setMessages((prev) =>
       prev.map((m) => {
         if (m._id !== messageId) return m;
         const currentReactions = m.reactions || [];
         const existingIdx = currentReactions.findIndex((r) => (r.user?._id || r.user) === user._id);
-        
+
         let nextReactions = [...currentReactions];
         if (existingIdx > -1) {
           if (nextReactions[existingIdx].emoji === emoji) {
@@ -355,6 +361,7 @@ export const InstantChat = () => {
     socket.emit('toggle_reaction', { messageId, emoji });
   };
 
+  // Start Call Handler
   const startCall = (callType) => {
     if (!selectedFriend) return;
     if (activeCall) {
@@ -366,6 +373,7 @@ export const InstantChat = () => {
     initiateCall(selectedFriend, callType);
   };
 
+  // Call History Modal Handlers
   const openCallHistoryModal = async () => {
     setShowCallHistory(true);
     try {
@@ -384,63 +392,65 @@ export const InstantChat = () => {
       await api.delete(`/chat/call-history/${historyId}`);
       setCallHistory((prev) => prev.filter((item) => item._id !== historyId));
     } catch (err) {
-      alert('Failed to delete call record');
+      console.error('Error deleting call log:', err);
     }
   };
 
   const handleClearAllCallHistory = async () => {
-    if (!window.confirm('Are you sure you want to clear all call history logs?')) return;
     try {
-      await api.delete('/chat/call-history/clear-all');
+      await api.delete('/chat/call-history');
       setCallHistory([]);
     } catch (err) {
-      alert('Failed to clear all call history');
+      console.error('Error clearing call history:', err);
     }
   };
 
-  const handleClearChat = async () => {
+  // Clear Chat History Handler
+  const handleClearChatHistory = async () => {
     if (!selectedFriend) return;
-    if (!window.confirm(`Clear all messages with ${selectedFriend.name}? Your connection will remain intact.`)) return;
+    if (!window.confirm(`Are you sure you want to clear chat history with ${selectedFriend.name}?`)) return;
 
     try {
-      await api.delete(`/chat/clear-chat/${selectedFriend._id}`);
+      await api.delete(`/chat/clear/${selectedFriend._id}`);
       setMessages([]);
     } catch (err) {
-      alert('Failed to clear chat history');
+      console.error('Failed to clear chat:', err);
     }
   };
 
+  // Filter Friends by Search Query
   const filteredFriends = friends.filter((f) =>
     f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    f.email.toLowerCase().includes(searchQuery.toLowerCase())
+    f.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    f.role?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="h-[calc(100vh-100px)] flex flex-col bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden relative text-slate-900 dark:text-slate-100 transition-colors">
-      {/* 1-on-1 CALL HISTORY MODAL */}
+    <div className="h-[calc(100vh-4rem)] flex flex-col bg-slate-950 text-slate-100 overflow-hidden font-sans">
+      {/* Call History Modal */}
       {showCallHistory && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 border border-slate-200 dark:border-slate-800">
-            <div className="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <History className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> Call History Logs
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 border border-slate-800">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-800">
+              <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <History className="w-4 h-4 text-indigo-400" /> Call History Logs
               </h3>
               <div className="flex items-center gap-2">
                 {callHistory.length > 0 && (
                   <button
                     onClick={handleClearAllCallHistory}
-                    className="px-2.5 py-1 bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 rounded-lg text-xs font-bold transition-all flex items-center gap-1"
+                    className="px-2.5 py-1 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1"
                   >
                     <Trash className="w-3.5 h-3.5" /> Clear All Logs
                   </button>
                 )}
-                <button onClick={() => setShowCallHistory(false)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white">
-                  <X className="w-4 h-4" />
+                <button onClick={() => setShowCallHistory(false)} className="text-slate-400 hover:text-white transition-colors">
+                  <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            <div className="max-h-96 overflow-y-auto divide-y divide-slate-200 dark:divide-slate-800 space-y-1">
+            <div className="max-h-96 overflow-y-auto divide-y divide-slate-800 space-y-1">
               {historyLoading ? (
                 <div className="p-8 flex justify-center">
                   <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
@@ -451,18 +461,18 @@ export const InstantChat = () => {
                 callHistory.map((item) => (
                   <div key={item._id} className="py-3 flex items-center justify-between text-xs">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-300 font-bold border border-slate-200 dark:border-slate-700">
-                        {item.callType === 'one_to_one_video' ? <Video className="w-4 h-4 text-indigo-500" /> : <Phone className="w-4 h-4 text-emerald-500" />}
+                      <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-bold border border-slate-700">
+                        {item.callType === 'one_to_one_video' ? <Video className="w-4 h-4 text-indigo-400" /> : <Phone className="w-4 h-4 text-emerald-400" />}
                       </div>
                       <div>
-                        <p className="font-bold text-slate-900 dark:text-slate-200">{item.title || '1-on-1 Call'}</p>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400">{formatCallTime(item.startedAt)}</p>
+                        <p className="font-bold text-slate-200">{item.title || '1-on-1 Call'}</p>
+                        <p className="text-[10px] text-slate-400">{formatCallTime(item.startedAt)}</p>
                       </div>
                     </div>
                     <button
                       onClick={() => handleDeleteCallRecord(item._id)}
-                      className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"
-                      title="Delete Call Log"
+                      className="p-1.5 text-slate-400 hover:text-rose-400 transition-colors"
+                      title="Delete Log"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -474,48 +484,48 @@ export const InstantChat = () => {
         </div>
       )}
 
-      {/* Main Chat Interface */}
+      {/* Main Layout Container */}
       <div className="flex-1 flex overflow-hidden">
-        {/* LEFT PANEL: Friends / Connections List */}
+        {/* LEFT PANEL: Contacts & Conversations */}
         <div
-          className={`w-full md:w-80 bg-slate-50 dark:bg-slate-900/90 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between ${
+          className={`w-full md:w-80 bg-slate-900 border-r border-slate-800 flex flex-col justify-between ${
             selectedFriend ? 'hidden md:flex' : 'flex'
           }`}
         >
-          <div className="p-4 border-b border-slate-200 dark:border-slate-800 space-y-3">
+          <div className="p-4 border-b border-slate-800 space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> Conversations
+              <h2 className="text-sm font-extrabold text-slate-100 flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-indigo-400" /> Conversations
               </h2>
               <button
                 onClick={openCallHistoryModal}
-                className="p-1.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs transition-all"
-                title="View Call Logs"
+                className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs transition-all shadow-sm"
+                title="View Call History"
               >
                 <History className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Search Box */}
+            {/* Search Input */}
             <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400 dark:text-slate-500" />
+              <Search className="w-3.5 h-3.5 absolute left-3.5 top-3 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search contacts..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
 
-            {/* Role Filter Tabs */}
-            <div className="flex bg-white dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-semibold">
+            {/* Role Filter Switcher */}
+            <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-[11px] font-semibold">
               {['All', 'Teacher', 'Student'].map((role) => (
                 <button
                   key={role}
                   onClick={() => setRoleFilter(role)}
                   className={`flex-1 py-1 rounded-lg text-center transition-all ${
-                    roleFilter === role ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    roleFilter === role ? 'bg-indigo-600 text-white shadow-sm font-bold' : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   {role}
@@ -524,69 +534,60 @@ export const InstantChat = () => {
             </div>
           </div>
 
-          {/* Friends List Container */}
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-200 dark:divide-slate-800/50">
+          {/* Contact List */}
+          <div className="flex-1 overflow-y-auto divide-y divide-slate-800/50">
             {friendsLoading ? (
               <div className="p-8 flex justify-center">
                 <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
               </div>
             ) : filteredFriends.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-500">
-                No connections found. Connect with peers in the Network section!
+                No connected contacts found. Connect with teachers or students to start chatting!
               </div>
             ) : (
               filteredFriends.map((friend) => {
                 const isOnline = onlineUsers.has(friend._id);
                 const isSelected = selectedFriend?._id === friend._id;
-                const lastMsgText = typeof friend.lastMessage === 'string' ? friend.lastMessage : (friend.lastMessage?.content || 'No messages yet');
-                const unreadCount = friend.unreadCount || 0;
 
                 return (
                   <div
                     key={friend._id}
-                    onClick={() => {
-                      setSelectedFriend(friend);
-                      setFriends((prev) =>
-                        prev.map((f) => (f._id === friend._id ? { ...f, unreadCount: 0 } : f))
-                      );
-                    }}
+                    onClick={() => setSelectedFriend(friend)}
                     className={`p-3.5 flex items-center gap-3 cursor-pointer transition-all ${
                       isSelected
-                        ? 'bg-indigo-50 dark:bg-indigo-600/10 border-l-4 border-indigo-600 dark:border-indigo-500'
-                        : 'hover:bg-slate-100 dark:hover:bg-slate-800/50'
+                        ? 'bg-indigo-600/10 border-l-4 border-indigo-500 text-slate-100'
+                        : 'hover:bg-slate-800/50 text-slate-300'
                     }`}
                   >
+                    {/* Avatar & Online Dot */}
                     <div className="relative shrink-0">
-                      <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center font-bold text-xs text-slate-800 dark:text-white border border-slate-300 dark:border-slate-700 overflow-hidden shrink-0">
-                        {friend.avatar ? (
-                          <img src={friend.avatar} alt={friend.name} className="w-full h-full object-cover" />
-                        ) : (
-                          friend.name?.charAt(0) || 'U'
-                        )}
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center text-white font-extrabold text-sm border border-indigo-500/30 shadow-md">
+                        {friend.name?.charAt(0) || 'U'}
                       </div>
                       <span
-                        className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white dark:border-slate-900 ${
-                          isOnline ? 'bg-emerald-500' : 'bg-slate-400 dark:bg-slate-600'
+                        className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 ${
+                          isOnline ? 'bg-emerald-500' : 'bg-slate-600'
                         }`}
                       />
                     </div>
 
+                    {/* Contact Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline">
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-slate-200 truncate">{friend.name}</h4>
+                        <p className="text-xs font-bold truncate text-slate-200">{friend.name}</p>
                         {friend.lastMessageDate && (
                           <span className="text-[10px] text-slate-500">
-                            {getDayHeaderLabel(friend.lastMessageDate)}
+                            {formatMessageTime(friend.lastMessageDate)}
                           </span>
                         )}
                       </div>
-                      <div className="flex justify-between items-center mt-0.5">
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[170px]">
-                          {lastMsgText}
+                      <div className="flex items-center justify-between mt-0.5">
+                        <p className="text-[11px] text-slate-400 truncate max-w-[140px]">
+                          {friend.lastMessage || `${friend.role || 'Contact'}`}
                         </p>
-                        {unreadCount > 0 && !isSelected && (
-                          <span className="px-1.5 py-0.5 bg-indigo-600 text-white rounded-full text-[9px] font-bold shrink-0">
-                            {unreadCount}
+                        {friend.unreadCount > 0 && (
+                          <span className="px-1.5 py-0.5 bg-indigo-600 text-white rounded-full text-[10px] font-extrabold shadow-sm">
+                            {friend.unreadCount}
                           </span>
                         )}
                       </div>
@@ -598,242 +599,268 @@ export const InstantChat = () => {
           </div>
         </div>
 
-        {/* RIGHT PANEL: Active Chat Room */}
-        <div className={`flex-1 flex flex-col bg-white dark:bg-slate-950 ${!selectedFriend ? 'hidden md:flex' : 'flex'}`}>
-          {selectedFriend ? (
-            <>
-              {/* Chat Room Header */}
-              <div className="px-6 py-3.5 bg-slate-50 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center z-10">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setSelectedFriend(null)}
-                    className="md:hidden p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                  >
-                    <ArrowLeft className="w-5 h-5" />
-                  </button>
-                  <div className="relative">
-                    <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center font-bold text-xs text-slate-800 dark:text-white border border-slate-300 dark:border-slate-700 overflow-hidden shrink-0">
-                      {selectedFriend.avatar ? (
-                        <img src={selectedFriend.avatar} alt={selectedFriend.name} className="w-full h-full object-cover" />
-                      ) : (
-                        selectedFriend.name?.charAt(0) || 'U'
-                      )}
-                    </div>
-                    <span
-                      className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 ${
-                        onlineUsers.has(selectedFriend._id) ? 'bg-emerald-500' : 'bg-slate-400 dark:bg-slate-600'
-                      }`}
-                    />
+        {/* RIGHT PANEL: Chat Conversation Screen */}
+        {selectedFriend ? (
+          <div className="flex-1 flex flex-col bg-slate-950">
+            {/* Chat Room Top Bar */}
+            <div className="p-3.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setSelectedFriend(null)}
+                  className="md:hidden p-1.5 text-slate-400 hover:text-white"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                <div className="relative">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center text-white font-extrabold text-sm border border-indigo-500/30">
+                    {selectedFriend.name?.charAt(0) || 'U'}
                   </div>
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100">{selectedFriend.name}</h3>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                      {onlineUsers.has(selectedFriend._id) ? 'Online' : 'Offline'} &bull; {selectedFriend.role}
-                    </p>
-                  </div>
+                  <span
+                    className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 ${
+                      onlineUsers.has(selectedFriend._id) ? 'bg-emerald-500' : 'bg-slate-600'
+                    }`}
+                  />
                 </div>
-
-                {/* Action Controls */}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => startCall('one_to_one_voice')}
-                    className="p-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 rounded-xl transition-all"
-                    title="Voice Call"
-                  >
-                    <Phone className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => startCall('one_to_one_video')}
-                    className="p-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400 rounded-xl transition-all"
-                    title="Video Call"
-                  >
-                    <Video className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={handleClearChat}
-                    className="p-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-xl transition-all"
-                    title="Clear Chat History"
-                  >
-                    <Eraser className="w-4 h-4" />
-                  </button>
+                <div>
+                  <h3 className="text-xs font-extrabold text-slate-100 flex items-center gap-2">
+                    {selectedFriend.name}
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-indigo-400 border border-slate-700 flex items-center gap-1">
+                      {selectedFriend.role === 'Teacher' ? <Briefcase className="w-3 h-3" /> : <GraduationCap className="w-3 h-3" />}
+                      {selectedFriend.role}
+                    </span>
+                  </h3>
+                  <p className="text-[10px] text-emerald-400 font-semibold mt-0.5 flex items-center gap-1">
+                    <span className={`w-1.5 h-1.5 rounded-full ${onlineUsers.has(selectedFriend._id) ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`} />
+                    {onlineUsers.has(selectedFriend._id) ? 'Online' : 'Offline'}
+                  </p>
                 </div>
               </div>
 
-              {/* Chat Message Stream with Day Dividers */}
-              <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-slate-100/40 dark:bg-slate-950">
-                {hasMore && (
-                  <div className="flex justify-center">
-                    <button
-                      onClick={loadOlderMessages}
-                      disabled={loadingOlder}
-                      className="px-3 py-1 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[11px] font-semibold hover:bg-slate-300 dark:hover:bg-slate-700 disabled:opacity-50"
-                    >
-                      {loadingOlder ? 'Loading older messages...' : 'Load older messages'}
-                    </button>
-                  </div>
-                )}
+              {/* Quick Action Controls */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => startCall('one_to_one_voice')}
+                  className="p-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded-xl transition-all shadow-sm"
+                  title="Start Voice Call"
+                >
+                  <Phone className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => startCall('one_to_one_video')}
+                  className="p-2 bg-slate-800 hover:bg-slate-700 text-indigo-400 rounded-xl transition-all shadow-sm"
+                  title="Start Video Call"
+                >
+                  <Video className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={handleClearChatHistory}
+                  className="p-2 bg-slate-800 hover:bg-slate-700 text-rose-400 rounded-xl transition-all shadow-sm"
+                  title="Clear Conversation"
+                >
+                  <Eraser className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
 
-                {messagesLoading ? (
-                  <div className="p-8 flex justify-center">
-                    <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                ) : messages.length === 0 ? (
-                  <div className="p-12 text-center text-slate-500 text-xs">
-                    No messages yet. Send a greeting to start chatting!
-                  </div>
-                ) : (
-                  messages.map((msg, idx) => {
-                    const isSelf = (msg.sender?._id || msg.sender) === user._id;
+            {/* Chat Timeline Stream */}
+            <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-950/60">
+              {messagesLoading ? (
+                <div className="p-8 flex justify-center">
+                  <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="p-12 text-center text-slate-500 text-xs font-semibold">
+                  No messages yet. Send a greeting to start chatting with {selectedFriend.name}!
+                </div>
+              ) : (
+                messages.map((msg, idx) => {
+                  const isSelf = (msg.sender?._id || msg.sender) === user._id;
+                  const currentDateHeader = getDayHeaderLabel(msg.createdAt);
+                  const prevDateHeader = idx > 0 ? getDayHeaderLabel(messages[idx - 1].createdAt) : null;
+                  const showDayDivider = currentDateHeader !== prevDateHeader;
 
-                    // Day Divider Calculation
-                    const currentDateHeader = getDayHeaderLabel(msg.createdAt);
-                    const prevDateHeader = idx > 0 ? getDayHeaderLabel(messages[idx - 1].createdAt) : null;
-                    const showDayDivider = currentDateHeader !== prevDateHeader;
+                  return (
+                    <React.Fragment key={msg._id || idx}>
+                      {showDayDivider && (
+                        <div className="flex justify-center my-3">
+                          <span className="px-3 py-1 bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-bold rounded-full uppercase tracking-wider shadow-sm">
+                            {currentDateHeader}
+                          </span>
+                        </div>
+                      )}
 
-                    return (
-                      <React.Fragment key={msg._id || idx}>
-                        {showDayDivider && (
-                          <div className="flex justify-center my-3">
-                            <span className="px-3 py-1 bg-slate-200 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold rounded-full uppercase tracking-wider shadow-sm">
-                              {currentDateHeader}
-                            </span>
-                          </div>
-                        )}
-
+                      <div
+                        id={`msg-${msg._id}`}
+                        className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'} group transition-all duration-300`}
+                      >
+                        {/* Bubble */}
                         <div
-                          id={`msg-${msg._id}`}
-                          className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'} group transition-all duration-300`}
+                          className={`max-w-[75%] p-3.5 rounded-2xl text-xs space-y-1.5 shadow-md relative transition-all ${
+                            isSelf
+                              ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-br-none'
+                              : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none'
+                          }`}
                         >
-                          {/* Message Bubble Container */}
-                          <div
-                            className={`max-w-[75%] p-3.5 rounded-2xl text-xs space-y-1.5 shadow-sm relative transition-all duration-300 ${
-                              isSelf
-                                ? 'bg-indigo-600 text-white rounded-br-none'
-                                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-200 rounded-bl-none'
-                            }`}
-                          >
-                            {/* Replied Message Tag - Clicking jumps to original message with 2s highlight */}
-                            {msg.replyTo && (
-                              <div
-                                onClick={() => handleJumpToMessage(msg.replyTo._id || msg.replyTo)}
-                                className={`p-2 rounded-xl text-[11px] cursor-pointer mb-1 border-l-3 transition-all hover:opacity-90 ${
-                                  isSelf
-                                    ? 'bg-indigo-700/70 border-indigo-300 text-indigo-100'
-                                    : 'bg-slate-100 dark:bg-slate-800 border-indigo-500 text-slate-700 dark:text-slate-300'
-                                }`}
-                              >
-                                <p className="font-bold flex items-center gap-1 text-[10px]">
-                                  <Reply className="w-3 h-3" /> {msg.replyTo.sender?.name || 'User'}
-                                </p>
-                                <p className="truncate text-[10px] opacity-90">{msg.replyTo.content}</p>
-                              </div>
-                            )}
-
-                            <p className="leading-relaxed font-medium whitespace-pre-wrap">{msg.content}</p>
-
-                            {/* Emoji Reaction Display Chips */}
-                            {msg.reactions && msg.reactions.length > 0 && (
-                              <div className="flex flex-wrap gap-1 pt-1">
-                                {msg.reactions.map((r, i) => (
-                                  <button
-                                    key={i}
-                                    onClick={() => handleToggleEmoji(msg._id, r.emoji)}
-                                    className="px-2 py-0.5 bg-slate-100 dark:bg-slate-950/80 hover:bg-slate-200 dark:hover:bg-slate-800 text-[11px] rounded-full border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 transition-all flex items-center gap-1"
-                                  >
-                                    <span>{r.emoji}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-
-                            <div className="flex items-center justify-end gap-1.5 text-[10px] opacity-75 pt-1">
-                              <span>{formatMessageTime(msg.createdAt)}</span>
-                              {isSelf && (
-                                <span className="flex items-center">
-                                  {msg.isRead ? (
-                                    <CheckCheck className="w-3.5 h-3.5 text-sky-300 font-bold" title="Read" />
-                                  ) : (
-                                    <Check className="w-3.5 h-3.5 opacity-70" title="Sent" />
-                                  )}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Quick Emoji Reaction Toolbar */}
+                          {/* Replied Message Tag Quote */}
+                          {msg.replyTo && (
                             <div
-                              className={`hidden group-hover:flex absolute -top-8 ${
-                                isSelf ? 'right-0' : 'left-0'
-                              } bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 rounded-2xl shadow-xl gap-1.5 z-20 transition-all`}
+                              onClick={() => handleJumpToMessage(msg.replyTo._id || msg.replyTo)}
+                              className={`p-2 rounded-xl text-[11px] cursor-pointer mb-1 border-l-4 transition-all hover:opacity-90 ${
+                                isSelf
+                                  ? 'bg-indigo-700/80 border-indigo-300 text-indigo-100'
+                                  : 'bg-slate-950 border-indigo-500 text-slate-300'
+                              }`}
                             >
-                              {EMOJIS.map((emoji) => (
+                              <p className="font-bold flex items-center gap-1 text-[10px]">
+                                <Reply className="w-3 h-3 text-indigo-400" /> {msg.replyTo.sender?.name || 'User'}
+                              </p>
+                              <p className="truncate text-[10px] opacity-90">{msg.replyTo.content}</p>
+                            </div>
+                          )}
+
+                          <p className="leading-relaxed font-medium whitespace-pre-wrap">{msg.content}</p>
+
+                          {/* Emoji Reaction Chips */}
+                          {msg.reactions && msg.reactions.length > 0 && (
+                            <div className="flex flex-wrap gap-1 pt-1">
+                              {msg.reactions.map((r, i) => (
                                 <button
-                                  key={emoji}
-                                  type="button"
-                                  onClick={() => handleToggleEmoji(msg._id, emoji)}
-                                  className="hover:scale-125 transition-transform p-0.5 text-sm"
-                                  title={`React with ${emoji}`}
+                                  key={i}
+                                  onClick={() => handleToggleEmoji(msg._id, r.emoji)}
+                                  className="px-2 py-0.5 bg-slate-950 hover:bg-slate-800 text-[11px] rounded-full border border-slate-800 text-slate-200 transition-all flex items-center gap-1"
                                 >
-                                  {emoji}
+                                  <span>{r.emoji}</span>
                                 </button>
                               ))}
-                              <button
-                                type="button"
-                                onClick={() => setReplyToMessage(msg)}
-                                className="p-1 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                                title="Reply"
-                              >
-                                <Reply className="w-3.5 h-3.5" />
-                              </button>
                             </div>
+                          )}
+
+                          {/* Time & Read Status */}
+                          <div className="flex items-center justify-end gap-1.5 text-[10px] opacity-75 pt-1">
+                            <span>{formatMessageTime(msg.createdAt)}</span>
+                            {isSelf && (
+                              <span className="flex items-center">
+                                {msg.isRead ? (
+                                  <CheckCheck className="w-3.5 h-3.5 text-sky-300 font-bold" title="Read" />
+                                ) : (
+                                  <Check className="w-3.5 h-3.5 opacity-70" title="Sent" />
+                                )}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Reaction & Reply Hover Toolbar */}
+                          <div
+                            className={`hidden group-hover:flex absolute -top-8 ${
+                              isSelf ? 'right-0' : 'left-0'
+                            } bg-slate-900 border border-slate-800 p-1.5 rounded-2xl shadow-xl gap-1.5 z-20 transition-all`}
+                          >
+                            {EMOJIS.slice(0, 6).map((emoji) => (
+                              <button
+                                key={emoji}
+                                type="button"
+                                onClick={() => handleToggleEmoji(msg._id, emoji)}
+                                className="hover:scale-125 transition-transform p-0.5 text-xs"
+                                title={`React ${emoji}`}
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => setReplyToMessage(msg)}
+                              className="p-1 text-slate-400 hover:text-indigo-400 transition-colors"
+                              title="Reply"
+                            >
+                              <Reply className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
-                      </React.Fragment>
-                    );
-                  })
-                )}
-                <div ref={messagesEndRef} />
-              </div>
+                      </div>
+                    </React.Fragment>
+                  );
+                })
+              )}
 
-              {/* Replied Message Preview Banner */}
-              {replyToMessage && (
-                <div className="px-6 py-2 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center text-xs text-slate-700 dark:text-slate-300">
-                  <div className="flex items-center gap-2 truncate">
-                    <CornerDownRight className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                    <span className="truncate">Replying to: <b>{replyToMessage.content}</b></span>
+              {/* Typing Indicator */}
+              {isTyping && (
+                <div className="flex items-center gap-2 text-xs text-slate-400 font-semibold p-2">
+                  <div className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
+                  <span>{selectedFriend.name} is typing...</span>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Replied Message Preview Banner */}
+            {replyToMessage && (
+              <div className="px-4 py-2 bg-slate-900 border-t border-slate-800 flex justify-between items-center text-xs text-slate-300">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Reply className="w-4 h-4 text-indigo-400 shrink-0" />
+                  <div className="truncate">
+                    <span className="font-bold text-indigo-400">Replying to {replyToMessage.sender?.name || 'User'}: </span>
+                    <span className="opacity-90">{replyToMessage.content}</span>
                   </div>
-                  <button onClick={() => setReplyToMessage(null)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white">
-                    <X className="w-4 h-4" />
-                  </button>
+                </div>
+                <button onClick={() => setReplyToMessage(null)} className="text-slate-400 hover:text-white p-1">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Bottom Message Input Form */}
+            <form onSubmit={handleSendMessage} className="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2 relative">
+              {/* Emoji Picker Popup */}
+              {showEmojiPicker && (
+                <div className="absolute bottom-16 left-4 bg-slate-900 border border-slate-800 p-2.5 rounded-2xl shadow-2xl grid grid-cols-5 gap-2 z-30">
+                  {EMOJIS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => {
+                        setNewMessage((prev) => prev + emoji);
+                        setShowEmojiPicker(false);
+                      }}
+                      className="p-2 hover:bg-slate-800 rounded-xl text-lg transition-transform hover:scale-125"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
                 </div>
               )}
 
-              {/* Chat Input Form */}
-              <form onSubmit={handleSendMessage} className="p-4 bg-slate-50 dark:bg-slate-900/90 border-t border-slate-200 dark:border-slate-800 flex gap-2">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  className="flex-1 px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-                <button
-                  type="submit"
-                  disabled={!newMessage.trim()}
-                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold disabled:opacity-40 transition-all shadow-md flex items-center gap-1.5"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Send</span>
-                </button>
-              </form>
-            </>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 text-xs p-8 space-y-2">
-              <MessageSquare className="w-12 h-12 text-slate-300 dark:text-slate-700 stroke-[1.5]" />
-              <p className="font-bold text-slate-700 dark:text-slate-300">Select a conversation to start chatting</p>
-              <p className="text-slate-500">Connect with classmates, supervisors, and colleagues in real time.</p>
-            </div>
-          )}
-        </div>
+              <button
+                type="button"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                className="p-2.5 text-slate-400 hover:text-indigo-400 rounded-xl hover:bg-slate-800 transition-colors"
+                title="Add Emoji"
+              >
+                <Smile className="w-5 h-5" />
+              </button>
+
+              <input
+                type="text"
+                placeholder={`Message ${selectedFriend.name}...`}
+                value={newMessage}
+                onChange={handleInputChange}
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-2xl px-4 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+
+              <button
+                type="submit"
+                disabled={!newMessage.trim()}
+                className="p-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 text-white rounded-2xl transition-all shadow-md active:scale-95 flex items-center justify-center"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </form>
+          </div>
+        ) : (
+          <div className="hidden md:flex flex-1 items-center justify-center flex-col text-slate-500 gap-3">
+            <MessageSquare className="w-12 h-12 text-slate-700" />
+            <p className="text-xs font-bold">Select a contact from the left list to start instant messaging.</p>
+          </div>
+        )}
       </div>
     </div>
   );

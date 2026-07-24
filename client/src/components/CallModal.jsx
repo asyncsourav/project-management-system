@@ -51,23 +51,36 @@ export const CallModal = ({
     };
   }, []);
 
-  // Initialize Media Stream for mic & camera
+  // Initialize Media Stream with graceful fallback if camera is unavailable
   const initLocalStream = async () => {
     if (localStreamRef.current) return localStreamRef.current;
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: true,
-    });
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: isVideoCall ? true : false,
+      });
+    } catch (err) {
+      console.warn('Could not acquire requested media stream, attempting fallback:', err);
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: false,
+        });
+      } catch (audioErr) {
+        console.error('Failed to acquire audio stream:', audioErr);
+        throw audioErr;
+      }
+    }
 
     localStreamRef.current = stream;
 
-    // Set initial video track enablement
     const videoTrack = stream.getVideoTracks()[0];
     if (videoTrack) {
       videoTrack.enabled = isVideoCall;
     }
-    setIsVideoOff(!isVideoCall);
+    setIsVideoOff(!videoTrack || !videoTrack.enabled);
 
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = stream;
@@ -281,14 +294,19 @@ export const CallModal = ({
       {/* Top Header */}
       <div className="flex justify-between items-center text-white pb-3 border-b border-slate-800/80 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-sm text-white shadow-md">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 flex items-center justify-center font-extrabold text-sm text-white shadow-md border border-indigo-400/30">
             {activeCall?.partner?.name?.charAt(0) || 'U'}
           </div>
           <div>
-            <h2 className="text-sm font-bold text-slate-100">{activeCall?.partner?.name}</h2>
+            <h2 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+              {activeCall?.partner?.name}
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 uppercase tracking-wider">
+                {isVideoCall ? 'Video Call' : 'Voice Call'}
+              </span>
+            </h2>
             <p className="text-xs text-indigo-400 font-semibold capitalize flex items-center gap-1.5 mt-0.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              {callState === 'outgoing' ? 'Ringing...' : callState === 'incoming' ? 'Incoming Call' : 'Call in Progress'}
+              {callState === 'outgoing' ? 'Ringing...' : callState === 'incoming' ? 'Incoming Call' : 'Call Connected'}
             </p>
           </div>
         </div>
