@@ -426,7 +426,7 @@ export const InstantChat = () => {
   );
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-300">
+    <div className="h-[calc(100vh-4rem-4px)] mt-[2px] pt-[2px] flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-300">
       {/* Call History Modal */}
       {showCallHistory && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">

@@ -38,8 +38,6 @@ const GlobalCallOverlay = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  if (!incomingCall && !activeCall) return null;
-
   const currentCallData = activeCall
     ? {
         mode: activeCall.mode || (activeCall.isConnected ? 'connected' : activeCall.isCaller ? 'outgoing' : 'incoming'),
@@ -47,12 +45,16 @@ const GlobalCallOverlay = () => {
         partner: activeCall.partner,
         offer: activeCall.offer,
       }
-    : {
+    : incomingCall
+    ? {
         mode: 'incoming',
         callType: incomingCall.callType,
         partner: incomingCall.caller,
         offer: incomingCall.offer,
-      };
+      }
+    : null;
+
+  if (!currentCallData) return null;
 
   const handleClose = (emitSocket = true) => {
     if (emitSocket) {

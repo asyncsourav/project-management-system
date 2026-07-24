@@ -181,6 +181,12 @@ export const CallModal = ({
         return;
       }
 
+      if (onAcceptCall) {
+        onAcceptCall();
+      }
+
+      setCallState('connected');
+
       const stream = await initLocalStream();
       const pc = createPeerConnection(stream);
 
@@ -198,12 +204,6 @@ export const CallModal = ({
           callType: activeCall.callType,
         });
       }
-
-      if (onAcceptCall) {
-        onAcceptCall();
-      }
-
-      setCallState('connected');
     } catch (err) {
       console.error('Failed to accept incoming call:', err);
       cleanupCall();

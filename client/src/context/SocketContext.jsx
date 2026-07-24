@@ -129,21 +129,19 @@ export const SocketProvider = ({ children, user: userProp }) => {
   };
 
   const acceptCall = () => {
-    if (!incomingCall) return;
-    const partner = incomingCall.caller;
-    const callType = incomingCall.callType;
-    const offer = incomingCall.offer;
-
-    setActiveCall({
-      partner,
-      callType,
-      offer,
-      isCaller: false,
-      isConnected: true,
-      mode: 'connected',
-    });
-
-    setIncomingCall(null);
+    if (incomingCall) {
+      setActiveCall({
+        partner: incomingCall.caller,
+        callType: incomingCall.callType,
+        offer: incomingCall.offer,
+        isCaller: false,
+        isConnected: true,
+        mode: 'connected',
+      });
+      setIncomingCall(null);
+    } else {
+      setActiveCall((prev) => (prev ? { ...prev, isConnected: true, mode: 'connected' } : null));
+    }
   };
 
   const rejectCall = () => {
