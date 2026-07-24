@@ -66,9 +66,9 @@ export const SocketProvider = ({ children, user: userProp }) => {
       setIncomingCall(data);
     });
 
-    // 1-on-1 Call Signals (Clean silent state resets to prevent alert loops)
+    // 1-on-1 Call Signals
     newSocket.on('call_accepted', (data) => {
-      setActiveCall((prev) => (prev ? { ...prev, answer: data.answer, isConnected: true } : null));
+      setActiveCall((prev) => (prev ? { ...prev, answer: data.answer, isConnected: true, mode: 'connected' } : null));
     });
 
     newSocket.on('call_rejected', () => {
@@ -140,7 +140,7 @@ export const SocketProvider = ({ children, user: userProp }) => {
       offer,
       isCaller: false,
       isConnected: true,
-      mode: 'incoming',
+      mode: 'connected',
     });
 
     setIncomingCall(null);

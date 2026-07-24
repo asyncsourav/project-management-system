@@ -5,6 +5,7 @@ export const CallModal = ({
   socket,
   currentUser,
   activeCall, // { mode: 'outgoing' | 'incoming' | 'connected', callType: 'one_to_one_voice' | 'one_to_one_video', partner, offer }
+  onAcceptCall,
   onCloseCall,
 }) => {
   const [callState, setCallState] = useState(activeCall?.mode || 'outgoing');
@@ -181,6 +182,10 @@ export const CallModal = ({
           answer,
           callType: activeCall.callType,
         });
+      }
+
+      if (onAcceptCall) {
+        onAcceptCall();
       }
 
       setCallState('connected');

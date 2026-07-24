@@ -34,7 +34,7 @@ import { InstantChat } from './pages/InstantChat';
 
 // Global Call Overlay component to display incoming/active call popup anywhere in app
 const GlobalCallOverlay = () => {
-  const { incomingCall, activeCall, endCall, rejectCall, socket } = useSocket();
+  const { incomingCall, activeCall, acceptCall, endCall, rejectCall, socket } = useSocket();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -67,13 +67,50 @@ const GlobalCallOverlay = () => {
     navigate('/chat');
   };
 
+  const handleAcceptAndSwitch = () => {
+    if (activeCall?.partner?._id) {
+      endCall(activeCall.partner._id);
+    }
+    acceptCall();
+  };
+
   return (
-    <CallModal
-      socket={socket}
-      currentUser={user}
-      activeCall={currentCallData}
-      onCloseCall={handleClose}
-    />
+    <>
+      {/* Top Floating Call Waiting Banner when already in an active call */}
+      {incomingCall && activeCall && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-slate-900 border border-indigo-500/50 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-4 text-xs animate-bounce">
+          <div className="flex items-center gap-2 font-bold">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+            <span>
+              {incomingCall.caller?.name} is calling... ({incomingCall.callType === 'one_to_one_video' ? 'Video' : 'Voice'})
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleAcceptAndSwitch}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 font-bold text-white rounded-xl transition-all shadow-md active:scale-95"
+            >
+              Accept & Switch
+            </button>
+            <button
+              onClick={rejectCall}
+              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 font-bold text-white rounded-xl transition-all shadow-md active:scale-95"
+            >
+              Decline
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Primary Call Modal */}
+      <CallModal
+        socket={socket}
+        currentUser={user}
+        activeCall={currentCallData}
+        onAcceptCall={acceptCall}
+        onCloseCall={handleClose}
+      />
+    </>
   );
 };
 

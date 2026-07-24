@@ -357,6 +357,12 @@ export const InstantChat = () => {
 
   const startCall = (callType) => {
     if (!selectedFriend) return;
+    if (activeCall) {
+      if (!window.confirm(`You are currently in an active call with ${activeCall.partner?.name || 'another user'}. End current call to call ${selectedFriend.name}?`)) {
+        return;
+      }
+      endCall(activeCall.partner?._id);
+    }
     initiateCall(selectedFriend, callType);
   };
 
