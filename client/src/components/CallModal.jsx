@@ -4,11 +4,11 @@ import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff } from 'lucide-react';
 export const CallModal = ({
   socket,
   currentUser,
-  activeCall, // { mode: 'outgoing' | 'incoming' | 'connected', callType: 'one_to_one_voice' | 'one_to_one_video', partner, offer }
+  activeCall, // { mode: 'outgoing' | 'incoming' | 'connected', callType: 'one_to_one_voice' | 'one_to_one_video', partner, offer, answer }
   onAcceptCall,
   onCloseCall,
 }) => {
-  const [callState, setCallState] = useState(activeCall?.mode || 'outgoing');
+  const [callState, setCallState] = useState(activeCall?.mode || (activeCall?.isConnected ? 'connected' : 'outgoing'));
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(activeCall?.callType === 'one_to_one_voice');
 
@@ -18,6 +18,17 @@ export const CallModal = ({
   const localStreamRef = useRef(null);
 
   const isVideoCall = activeCall?.callType === 'one_to_one_video';
+
+  // Synchronize local callState with incoming activeCall prop updates from SocketContext
+  useEffect(() => {
+    if (activeCall?.mode === 'connected' || activeCall?.isConnected || activeCall?.answer) {
+      setCallState('connected');
+    } else if (activeCall?.mode === 'incoming') {
+      setCallState('incoming');
+    } else if (activeCall?.mode === 'outgoing') {
+      setCallState('outgoing');
+    }
+  }, [activeCall?.mode, activeCall?.isConnected, activeCall?.answer]);
 
   useEffect(() => {
     let isSubscribed = true;
@@ -30,17 +41,27 @@ export const CallModal = ({
       if (isSubscribed) hangUp(false);
     };
 
+    const handleCallAccepted = async ({ answer }) => {
+      if (!isSubscribed) return;
+      setCallState('connected');
+      const pc = peerConnectionRef.current;
+      if (pc && pc.signalingState !== 'stable' && answer) {
+        try {
+          await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        } catch (err) {
+          console.error('Error setting remote description on call_accepted:', err);
+        }
+      }
+    };
+
     if (socket) {
       socket.on('call_ended', handleRemoteCallEnded);
       socket.on('call_rejected', handleRemoteCallRejected);
+      socket.on('call_accepted', handleCallAccepted);
     }
 
     if (activeCall?.mode === 'outgoing') {
       startOutgoingCall();
-    } else if (activeCall?.mode === 'incoming') {
-      setCallState('incoming');
-    } else if (activeCall?.mode === 'connected') {
-      setCallState('connected');
     }
 
     return () => {
@@ -48,10 +69,28 @@ export const CallModal = ({
       if (socket) {
         socket.off('call_ended', handleRemoteCallEnded);
         socket.off('call_rejected', handleRemoteCallRejected);
+        socket.off('call_accepted', handleCallAccepted);
       }
-      // Note: cleanupCall is called explicitly inside hangUp to prevent incidental re-render unmounts from cutting active calls
     };
-  }, [activeCall?.partner?._id, activeCall?.mode]);
+  }, [activeCall?.partner?._id]);
+
+  // Apply answer if activeCall prop receives answer payload
+  useEffect(() => {
+    const applyAnswer = async () => {
+      if (activeCall?.answer && peerConnectionRef.current) {
+        const pc = peerConnectionRef.current;
+        if (pc.signalingState !== 'stable') {
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(activeCall.answer));
+            setCallState('connected');
+          } catch (err) {
+            console.error('Error applying activeCall.answer:', err);
+          }
+        }
+      }
+    };
+    applyAnswer();
+  }, [activeCall?.answer]);
 
   // Initialize Media Stream with graceful fallback if camera is unavailable
   const initLocalStream = async () => {
@@ -121,17 +160,6 @@ export const CallModal = ({
     };
 
     if (socket) {
-      socket.on('call_accepted', async ({ answer }) => {
-        try {
-          if (pc && pc.signalingState !== 'stable' && answer) {
-            await pc.setRemoteDescription(new RTCSessionDescription(answer));
-            setCallState('connected');
-          }
-        } catch (err) {
-          console.error('Error applying remote answer:', err);
-        }
-      });
-
       socket.on('ice_candidate', async ({ candidate }) => {
         if (pc && candidate) {
           try {

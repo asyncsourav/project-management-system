@@ -426,7 +426,7 @@ export const InstantChat = () => {
   );
 
   return (
-    <div className="h-[calc(100vh-4rem-4px)] mt-[2px] pt-[2px] flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-300">
+    <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-300 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
       {/* Call History Modal */}
       {showCallHistory && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
@@ -535,7 +535,7 @@ export const InstantChat = () => {
           </div>
 
           {/* Contact List */}
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/50">
+          <div className="flex-1 overflow-y-auto overscroll-contain divide-y divide-slate-100 dark:divide-slate-800/50">
             {friendsLoading ? (
               <div className="p-8 flex justify-center">
                 <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
@@ -663,7 +663,7 @@ export const InstantChat = () => {
             </div>
 
             {/* Chat Timeline Stream */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-100/70 dark:bg-slate-950/60">
+            <div className="flex-1 p-4 overflow-y-auto overscroll-contain space-y-3 bg-slate-100/70 dark:bg-slate-950/60">
               {messagesLoading ? (
                 <div className="p-8 flex justify-center">
                   <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>

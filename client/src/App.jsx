@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider, useSocket } from './context/SocketContext';
 
@@ -118,12 +118,15 @@ const GlobalCallOverlay = () => {
 };
 
 const DashboardLayout = () => {
+  const location = useLocation();
+  const isChatPage = location.pathname === '/chat';
+
   return (
     <div className="h-screen w-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors selection:bg-indigo-600 selection:text-white">
       <Navbar />
       <div className="flex flex-1 h-[calc(100vh-64px)] overflow-hidden">
         <Sidebar />
-        <main className="flex-1 p-6 md:p-8 overflow-y-auto h-full bg-slate-100/50 dark:bg-slate-900/50">
+        <main className={`flex-1 ${isChatPage ? 'p-2 sm:p-3 overflow-hidden' : 'p-6 md:p-8 overflow-y-auto'} h-full bg-slate-100/50 dark:bg-slate-900/50`}>
           <Outlet />
         </main>
       </div>
