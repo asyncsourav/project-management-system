@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff, Volume2 } from 'lucide-react';
+import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff } from 'lucide-react';
 
 export const CallModal = ({
   socket,
@@ -34,7 +34,11 @@ export const CallModal = ({
       socket.on('call_rejected', handleRemoteCallRejected);
     }
 
-    setupWebRTC();
+    if (activeCall?.mode === 'outgoing') {
+      startOutgoingCall();
+    } else if (activeCall?.mode === 'incoming') {
+      setCallState('incoming');
+    }
 
     return () => {
       isSubscribed = false;
@@ -46,128 +50,144 @@ export const CallModal = ({
     };
   }, []);
 
-  const setupWebRTC = async () => {
-    try {
-      // 1. Get user local audio & video stream
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: isVideoCall,
-      });
+  // Initialize Media Stream for mic & camera
+  const initLocalStream = async () => {
+    if (localStreamRef.current) return localStreamRef.current;
 
-      localStreamRef.current = stream;
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: true,
+    });
+
+    localStreamRef.current = stream;
+
+    // Set initial video track enablement
+    const videoTrack = stream.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = isVideoCall;
+    }
+    setIsVideoOff(!isVideoCall);
+
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = stream;
+    }
+
+    return stream;
+  };
+
+  // Helper to create RTCPeerConnection
+  const createPeerConnection = (stream) => {
+    if (peerConnectionRef.current) return peerConnectionRef.current;
+
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+      ],
+    });
+
+    peerConnectionRef.current = pc;
+
+    stream.getTracks().forEach((track) => {
+      pc.addTrack(track, stream);
+    });
+
+    pc.ontrack = (event) => {
+      if (remoteVideoRef.current && event.streams[0]) {
+        remoteVideoRef.current.srcObject = event.streams[0];
       }
+    };
 
-      // 2. Create RTCPeerConnection
-      const pc = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-        ],
+    pc.onicecandidate = (event) => {
+      if (event.candidate && socket && activeCall?.partner?._id) {
+        socket.emit('ice_candidate', {
+          targetId: activeCall.partner._id,
+          candidate: event.candidate,
+        });
+      }
+    };
+
+    if (socket) {
+      socket.on('call_accepted', async ({ answer }) => {
+        try {
+          if (pc && pc.signalingState !== 'stable' && answer) {
+            await pc.setRemoteDescription(new RTCSessionDescription(answer));
+            setCallState('connected');
+          }
+        } catch (err) {
+          console.error('Error applying remote answer:', err);
+        }
       });
 
-      peerConnectionRef.current = pc;
-
-      // Add local stream tracks to WebRTC peer connection
-      stream.getTracks().forEach((track) => {
-        pc.addTrack(track, stream);
-      });
-
-      // Remote stream track listener
-      pc.ontrack = (event) => {
-        if (remoteVideoRef.current && event.streams[0]) {
-          remoteVideoRef.current.srcObject = event.streams[0];
-        }
-      };
-
-      // ICE Candidate listener
-      pc.onicecandidate = (event) => {
-        if (event.candidate && socket && activeCall?.partner?._id) {
-          socket.emit('ice_candidate', {
-            targetId: activeCall.partner._id,
-            candidate: event.candidate,
-          });
-        }
-      };
-
-      // Socket signal listeners
-      if (socket) {
-        socket.on('call_accepted', async ({ answer }) => {
+      socket.on('ice_candidate', async ({ candidate }) => {
+        if (pc && candidate) {
           try {
-            if (pc && pc.signalingState !== 'stable' && answer) {
-              await pc.setRemoteDescription(new RTCSessionDescription(answer));
-              setCallState('connected');
-            }
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
           } catch (err) {
-            console.error('Error applying remote answer:', err);
+            console.error('Error adding ICE candidate:', err);
           }
-        });
-
-        socket.on('ice_candidate', async ({ candidate }) => {
-          if (pc && candidate) {
-            try {
-              await pc.addIceCandidate(new RTCIceCandidate(candidate));
-            } catch (err) {
-              console.error('Error adding ICE candidate:', err);
-            }
-          }
-        });
-      }
-
-      // 3. Handle WebRTC Offer / Answer negotiation
-      if (activeCall?.mode === 'outgoing') {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        if (socket && activeCall?.partner?._id) {
-          socket.emit('initiate_call', {
-            recipientId: activeCall.partner._id,
-            callType: activeCall.callType,
-            offer,
-          });
         }
-      } else if (activeCall?.offer && activeCall?.mode === 'incoming') {
-        await pc.setRemoteDescription(new RTCSessionDescription(activeCall.offer));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        if (socket && activeCall?.partner?._id) {
-          socket.emit('answer_call', {
-            callerId: activeCall.partner._id,
-            answer,
-            callType: activeCall.callType,
-          });
-        }
-        setCallState('connected');
+      });
+    }
+
+    return pc;
+  };
+
+  // Caller side: Start Outgoing Call
+  const startOutgoingCall = async () => {
+    try {
+      const stream = await initLocalStream();
+      const pc = createPeerConnection(stream);
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      if (socket && activeCall?.partner?._id) {
+        socket.emit('initiate_call', {
+          recipientId: activeCall.partner._id,
+          callType: activeCall.callType,
+          offer,
+        });
       }
     } catch (err) {
-      console.error('Error setting up WebRTC call:', err);
+      console.error('Error starting outgoing call:', err);
       cleanupCall();
       onCloseCall();
     }
   };
 
+  // Receiver side: Accept Incoming Call
   const handleAcceptCall = async () => {
     try {
-      const pc = peerConnectionRef.current;
-      if (pc && activeCall?.offer) {
-        if (pc.signalingState !== 'stable') {
-          await pc.setRemoteDescription(new RTCSessionDescription(activeCall.offer));
-        }
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-
-        if (socket && activeCall?.partner?._id) {
-          socket.emit('answer_call', {
-            callerId: activeCall.partner._id,
-            answer,
-            callType: activeCall.callType,
-          });
-        }
-        setCallState('connected');
+      if (!activeCall?.offer) {
+        alert('Missing call offer data');
+        return;
       }
+
+      const stream = await initLocalStream();
+      const pc = createPeerConnection(stream);
+
+      if (pc.signalingState !== 'stable') {
+        await pc.setRemoteDescription(new RTCSessionDescription(activeCall.offer));
+      }
+
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      if (socket && activeCall?.partner?._id) {
+        socket.emit('answer_call', {
+          callerId: activeCall.partner._id,
+          answer,
+          callType: activeCall.callType,
+        });
+      }
+
+      setCallState('connected');
     } catch (err) {
-      console.error('Failed to accept call:', err);
+      console.error('Failed to accept incoming call:', err);
+      cleanupCall();
+      onCloseCall();
     }
   };
 
@@ -269,7 +289,7 @@ export const CallModal = ({
         </div>
       </div>
 
-      {/* Main Responsive Video View */}
+      {/* Main Video View */}
       <div className="flex-1 my-4 grid grid-cols-1 md:grid-cols-2 gap-4 items-center justify-center min-h-0">
         {/* LOCAL STREAM BOX */}
         <div className="relative w-full aspect-video md:aspect-auto md:h-full md:min-h-[300px] bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 shadow-xl flex items-center justify-center">
@@ -317,7 +337,7 @@ export const CallModal = ({
         </div>
       </div>
 
-      {/* Sticky Bottom Control Bar */}
+      {/* Control Bar */}
       <div className="sticky bottom-2 z-20 bg-slate-900/90 backdrop-blur-md p-3 sm:p-4 rounded-2xl border border-slate-800 shadow-2xl flex justify-center items-center gap-3 sm:gap-4 max-w-md mx-auto w-full shrink-0">
         {callState === 'incoming' ? (
           <>
@@ -348,17 +368,15 @@ export const CallModal = ({
               {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
             </button>
 
-            {isVideoCall && (
-              <button
-                onClick={toggleVideo}
-                className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center transition-all ${
-                  isVideoOff ? 'bg-rose-600 text-white' : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
-                }`}
-                title={isVideoOff ? 'Turn Camera On' : 'Turn Camera Off'}
-              >
-                {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
-              </button>
-            )}
+            <button
+              onClick={toggleVideo}
+              className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center transition-all ${
+                isVideoOff ? 'bg-rose-600 text-white' : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+              }`}
+              title={isVideoOff ? 'Turn Camera On' : 'Turn Camera Off'}
+            >
+              {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+            </button>
 
             <button
               onClick={() => hangUp(true)}
