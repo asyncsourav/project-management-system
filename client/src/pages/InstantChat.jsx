@@ -245,10 +245,10 @@ export const InstantChat = () => {
     }
   };
 
-  // Send Message Handler
-  const handleSendMessage = (e) => {
+  // Send Message Handler (Dual mode: Socket primary + HTTP fallback)
+  const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedFriend || !socket) return;
+    if (!newMessage.trim() || !selectedFriend) return;
 
     const content = newMessage.trim();
     const replyToObj = replyToMessage;
@@ -256,40 +256,59 @@ export const InstantChat = () => {
     setNewMessage('');
     setReplyToMessage(null);
 
-    socket.emit(
-      'send_message',
-      {
-        recipientId: selectedFriend._id,
-        content,
-        replyToId: replyToObj ? replyToObj._id : null,
-      },
-      (response) => {
-        if (response && response.success) {
-          setMessages((prev) => {
-            if (prev.some((m) => m._id === response.message._id)) return prev;
-            return [...prev, response.message];
-          });
-          scrollToBottom();
+    const updateUIWithSentMessage = (msgData) => {
+      setMessages((prev) => {
+        if (prev.some((m) => m._id === msgData._id)) return prev;
+        return [...prev, msgData];
+      });
+      scrollToBottom();
 
-          // Move current contact to top of left contact list
-          setFriends((prevFriends) => {
-            const targetFriend = prevFriends.find((f) => f._id === selectedFriend._id);
-            if (!targetFriend) return prevFriends;
+      // Move current contact to top of left contact list
+      setFriends((prevFriends) => {
+        const targetFriend = prevFriends.find((f) => f._id === selectedFriend._id);
+        if (!targetFriend) return prevFriends;
 
-            const updatedTarget = {
-              ...targetFriend,
-              lastMessage: response.message.content,
-              lastMessageDate: response.message.createdAt,
-            };
+        const updatedTarget = {
+          ...targetFriend,
+          lastMessage: msgData.content,
+          lastMessageDate: msgData.createdAt,
+        };
 
-            const remaining = prevFriends.filter((f) => f._id !== selectedFriend._id);
-            return [updatedTarget, ...remaining];
-          });
-        } else if (response && response.error) {
-          alert(response.error);
+        const remaining = prevFriends.filter((f) => f._id !== selectedFriend._id);
+        return [updatedTarget, ...remaining];
+      });
+    };
+
+    if (socket && socket.connected) {
+      socket.emit(
+        'send_message',
+        {
+          recipientId: selectedFriend._id,
+          content,
+          replyToId: replyToObj ? replyToObj._id : null,
+        },
+        (response) => {
+          if (response && response.success) {
+            updateUIWithSentMessage(response.message);
+          } else if (response && response.error) {
+            alert(response.error);
+          }
         }
+      );
+    } else {
+      // Fallback via REST API when socket is reconnecting or unavailable
+      try {
+        const res = await api.post('/chat/send', {
+          recipientId: selectedFriend._id,
+          content,
+        });
+        if (res.data?.data?.message) {
+          updateUIWithSentMessage(res.data.data.message);
+        }
+      } catch (err) {
+        console.error('Failed to send message via HTTP fallback:', err);
       }
-    );
+    }
   };
 
   const handleToggleEmoji = (messageId, emoji) => {

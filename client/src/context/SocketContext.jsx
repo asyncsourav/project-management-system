@@ -1,9 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
+import { useAuth } from './AuthContext';
 
 const SocketContext = createContext(null);
 
-export const SocketProvider = ({ children, user }) => {
+export const SocketProvider = ({ children, user: userProp }) => {
+  const auth = useAuth();
+  const user = userProp || auth?.user;
+
   const [socket, setSocket] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const [unreadCounts, setUnreadCounts] = useState({});
@@ -13,7 +17,14 @@ export const SocketProvider = ({ children, user }) => {
   const socketRef = useRef(null);
 
   useEffect(() => {
-    if (!user?._id) return;
+    if (!user?._id) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+        setSocket(null);
+      }
+      return;
+    }
 
     const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
     const newSocket = io(socketUrl, {
@@ -85,7 +96,7 @@ export const SocketProvider = ({ children, user }) => {
       newSocket.disconnect();
       socketRef.current = null;
     };
-  }, [user]);
+  }, [user?._id]);
 
   // Total Unread Messages Count
   const totalUnreadCount = Object.values(unreadCounts).reduce((acc, curr) => acc + curr, 0);

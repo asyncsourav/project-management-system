@@ -7,6 +7,7 @@ const router = express.Router();
 router.use(isAuthenticated);
 
 router.get('/friends', chatController.getConnectedFriends);
+router.post('/send', chatController.sendMessage);
 router.get('/call-history', chatController.getCallHistory);
 router.delete('/call-history/clear-all', chatController.clearAllCallHistory);
 router.delete('/call-history/:historyId', chatController.deleteCallHistoryRecord);
