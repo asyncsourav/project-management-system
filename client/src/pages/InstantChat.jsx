@@ -6,6 +6,8 @@ import {
   MessageSquare, Send, CheckCheck, Check, Reply, Users, Search, X, Phone, Video, History, Trash2, Smile, Eraser, ArrowLeft, Trash, GraduationCap, Briefcase
 } from 'lucide-react';
 
+import { useCallStore } from '../store/useCallStore';
+
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '🎉', '👏', '💯'];
 
 // Helper to format date headers in message stream
@@ -53,7 +55,7 @@ const formatCallTime = (dateStr) => {
 
 export const InstantChat = () => {
   const { user } = useAuth();
-  const { socket, onlineUsers, initiateCall, activeCall, endCall, markChatAsRead, setActiveChatUserId } = useSocket();
+  const { socket, onlineUsers, markChatAsRead, setActiveChatUserId } = useSocket();
 
   // Connected friends state
   const [friends, setFriends] = useState([]);
@@ -363,14 +365,15 @@ export const InstantChat = () => {
 
   // Start Call Handler
   const startCall = (callType) => {
-    if (!selectedFriend) return;
-    if (activeCall) {
-      if (!window.confirm(`You are currently in an active call with ${activeCall.partner?.name || 'another user'}. End current call to call ${selectedFriend.name}?`)) {
+    if (!selectedFriend || !socket) return;
+    const { callState, endCall: storeEndCall, initiateCall: storeInitiateCall } = useCallStore.getState();
+    if (callState !== 'idle') {
+      if (!window.confirm(`You are currently in an active call. End current call to call ${selectedFriend.name}?`)) {
         return;
       }
-      endCall(activeCall.partner?._id);
+      storeEndCall(socket, true);
     }
-    initiateCall(selectedFriend, callType);
+    storeInitiateCall(selectedFriend, callType, socket);
   };
 
   // Call History Modal Handlers

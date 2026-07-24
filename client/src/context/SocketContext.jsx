@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { useCallStore } from '../store/useCallStore';
 
 const SocketContext = createContext(null);
 
@@ -12,8 +13,6 @@ export const SocketProvider = ({ children, user: userProp }) => {
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const [unreadCounts, setUnreadCounts] = useState({});
   const [activeChatUserId, setActiveChatUserId] = useState(null);
-  const [incomingCall, setIncomingCall] = useState(null); // { caller, callType, offer }
-  const [activeCall, setActiveCall] = useState(null); // { partner, callType, offer, answer, isCaller, isConnected, mode }
   const socketRef = useRef(null);
 
   useEffect(() => {
@@ -61,24 +60,25 @@ export const SocketProvider = ({ children, user: userProp }) => {
       }
     });
 
-    // Incoming Call Popup Signal
+    // Centralized WebRTC Call Signaling Listeners -> useCallStore
     newSocket.on('incoming_call', (data) => {
-      setIncomingCall(data);
+      useCallStore.getState().setIncomingCall(data);
     });
 
-    // 1-on-1 Call Signals
     newSocket.on('call_accepted', (data) => {
-      setActiveCall((prev) => (prev ? { ...prev, answer: data.answer, isConnected: true, mode: 'connected' } : null));
+      useCallStore.getState().handleCallAccepted(data);
+    });
+
+    newSocket.on('ice_candidate', (data) => {
+      useCallStore.getState().handleIceCandidate(data);
     });
 
     newSocket.on('call_rejected', () => {
-      setActiveCall(null);
-      setIncomingCall(null);
+      useCallStore.getState().resetCallStore();
     });
 
     newSocket.on('call_ended', () => {
-      setActiveCall(null);
-      setIncomingCall(null);
+      useCallStore.getState().resetCallStore();
     });
 
     // Real-Time Unread Message Counter Listener
@@ -95,6 +95,7 @@ export const SocketProvider = ({ children, user: userProp }) => {
     return () => {
       newSocket.disconnect();
       socketRef.current = null;
+      useCallStore.getState().resetCallStore();
     };
   }, [user?._id]);
 
@@ -110,56 +111,6 @@ export const SocketProvider = ({ children, user: userProp }) => {
     });
   }, []);
 
-  // Call Actions
-  const initiateCall = (recipient, callType, offer) => {
-    if (!socketRef.current) return;
-    setActiveCall({
-      partner: recipient,
-      callType,
-      offer,
-      isCaller: true,
-      isConnected: false,
-      mode: 'outgoing',
-    });
-    socketRef.current.emit('initiate_call', {
-      recipientId: recipient._id,
-      callType,
-      offer,
-    });
-  };
-
-  const acceptCall = () => {
-    if (incomingCall) {
-      setActiveCall({
-        partner: incomingCall.caller,
-        callType: incomingCall.callType,
-        offer: incomingCall.offer,
-        isCaller: false,
-        isConnected: true,
-        mode: 'connected',
-      });
-      setIncomingCall(null);
-    } else {
-      setActiveCall((prev) => (prev ? { ...prev, isConnected: true, mode: 'connected' } : null));
-    }
-  };
-
-  const rejectCall = () => {
-    if (!socketRef.current || !incomingCall) return;
-    socketRef.current.emit('reject_call', {
-      callerId: incomingCall.caller._id,
-    });
-    setIncomingCall(null);
-  };
-
-  const endCall = (targetId) => {
-    if (socketRef.current && targetId) {
-      socketRef.current.emit('end_call', { targetId });
-    }
-    setActiveCall(null);
-    setIncomingCall(null);
-  };
-
   return (
     <SocketContext.Provider
       value={{
@@ -170,12 +121,6 @@ export const SocketProvider = ({ children, user: userProp }) => {
         markChatAsRead,
         activeChatUserId,
         setActiveChatUserId,
-        incomingCall,
-        activeCall,
-        initiateCall,
-        acceptCall,
-        rejectCall,
-        endCall,
       }}
     >
       {children}
