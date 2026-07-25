@@ -50,7 +50,7 @@ export const Login = () => {
             <BookOpen className="w-5 h-5" />
           </div>
           <h2 className="text-lg font-bold text-slate-100">Sign In to Your Account</h2>
-          <p className="text-xs text-slate-400">Academic Project Management System</p>
+          <p className="text-xs text-slate-400">EduNexus &bull; Academic Project & Governance Hub</p>
         </div>
 
         {error && (

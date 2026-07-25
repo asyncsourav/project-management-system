@@ -24,9 +24,9 @@ export const LandingPage = () => {
             </div>
             <div>
               <span className="font-bold text-sm text-slate-100 tracking-tight">
-                Academic Project System
+                EduNexus
               </span>
-              <p className="text-[10px] text-slate-400">Enterprise FYP Governance Platform</p>
+              <p className="text-[10px] text-slate-400">Academic Project & Governance Hub</p>
             </div>
           </div>
 
@@ -117,7 +117,7 @@ export const LandingPage = () => {
       </div>
 
       <footer className="px-6 py-4 border-t border-slate-800 bg-slate-900 text-center text-xs text-slate-500">
-        Academic Project Management System &bull; University Governance
+        EduNexus &bull; Academic Project & Governance Hub
       </footer>
     </div>
   );

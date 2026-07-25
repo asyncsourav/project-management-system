@@ -243,7 +243,7 @@ export const forgotPassword = asyncHandler(async (req, res, next) => {
     try {
         await sendEmail({
             to: user.email,
-            subject: "FYM Project Management System - Password Reset Request",
+            subject: "EduNexus - Password Reset Request",
             message
         });
 

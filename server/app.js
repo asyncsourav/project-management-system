@@ -16,6 +16,8 @@ import teacherRouter from './router/teacher.route.js';
 import connectionRouter from './router/connection.route.js';
 import chatRouter from './router/chat.route.js';
 import { errorMiddleware } from './middlewares/error.js';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerDocument, swaggerUiOptions } from './config/swagger.js';
 
 
 
@@ -93,9 +95,17 @@ app.use('/api/v1/chat', chatRouter);
 app.get('/api/v1/health', (req, res) => {
     res.status(200).json({
         success: true,
-        message: 'Academic Project Workflow Platform API is running smoothly',
+        message: 'EduNexus API is running smoothly',
         timestamp: new Date().toISOString(),
     });
+});
+
+// API Documentation (Swagger UI)
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, swaggerUiOptions));
+app.use('/api/v1/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, swaggerUiOptions));
+app.get('/api-docs.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerDocument);
 });
 
 // Centralized error middleware

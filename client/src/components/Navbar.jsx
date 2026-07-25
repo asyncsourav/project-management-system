@@ -36,9 +36,9 @@ export const Navbar = () => {
           </div>
           <div>
             <span className="font-bold text-sm text-slate-900 dark:text-slate-100 tracking-tight">
-              Academic Project Management System
+              EduNexus
             </span>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400">Project Governance & Collaboration</p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">Academic Project & Governance Hub</p>
           </div>
         </Link>
 

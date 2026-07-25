@@ -23,7 +23,7 @@ export function generateForgotPasswordEmailTemplate(resetPasswordUrl) {
                         <tr>
                             <td align="center"
                                 style="background:#2563eb;padding:30px;color:#ffffff;">
-                                <h1 style="margin:0;">FYM Project Management System</h1>
+                                <h1 style="margin:0;">EduNexus</h1>
                                 <p style="margin-top:8px;font-size:16px;">
                                     Password Reset Request
                                 </p>
@@ -82,7 +82,7 @@ export function generateForgotPasswordEmailTemplate(resetPasswordUrl) {
 
                                 <p style="margin-top:35px;">
                                     Thank you,<br>
-                                    <strong>FYM Project Management System Team</strong>
+                                    <strong>EduNexus Team</strong>
                                 </p>
 
                             </td>
@@ -94,7 +94,7 @@ export function generateForgotPasswordEmailTemplate(resetPasswordUrl) {
                                 style="background:#f8f9fa;padding:20px;color:#777;font-size:13px;">
                                 This is an automated email. Please do not reply.
                                 <br><br>
-                                © ${new Date().getFullYear()} FYM Project Management System. All rights reserved.
+                                © ${new Date().getFullYear()} EduNexus. All rights reserved.
                             </td>
                         </tr>
 
