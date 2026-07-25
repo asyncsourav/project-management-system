@@ -1,4 +1,8 @@
+
+
 import mongoose from 'mongoose';
+
+
 
 export const PROJECT_STATUS = {
     DRAFT: 'draft',
@@ -9,6 +13,8 @@ export const PROJECT_STATUS = {
     ASSIGNED: 'assigned',
     COMPLETED: 'completed',
 };
+
+
 
 const projectSchema = new mongoose.Schema({
     student: {
@@ -104,6 +110,8 @@ const projectSchema = new mongoose.Schema({
     ]
 }, { timestamps: true });
 
+
+
 // * Compound Indexes based on production query access patterns
 projectSchema.index({ student: 1, isDeleted: 1 });
 projectSchema.index(
@@ -112,5 +120,8 @@ projectSchema.index(
 );
 projectSchema.index({ supervisor: 1, status: 1, isDeleted: 1 });
 projectSchema.index({ status: 1, createdAt: -1 });
+
+
+
 
 export const Project = mongoose.models.Project || mongoose.model('Project', projectSchema);

@@ -1,7 +1,13 @@
+
+
+
 import { User } from '../models/user.js';
+
+
 
 export const seedDefaultUsers = async () => {
     try {
+
         const adminCount = await User.countDocuments({ role: 'Admin', isDeleted: false });
         if (adminCount === 0) {
             await User.create({
@@ -39,7 +45,12 @@ export const seedDefaultUsers = async () => {
                 status: 'active'
             });
         }
+    
+    
     } catch (error) {
         console.error('Error seeding default users:', error.message);
     }
 };
+
+
+

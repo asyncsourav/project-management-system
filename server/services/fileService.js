@@ -1,9 +1,10 @@
+
+
 import ErrorHandler from '../middlewares/error.js';
 import { uploadToCloudinary } from '../config/cloudinary.js';
 
-/**
- * Handle document file upload directly to Cloudinary or base64 fallback from memory buffer
- */
+
+
 export const uploadProjectFile = async (fileBuffer, originalName, mimeType, projectId) => {
   try {
     const resourceType = mimeType.startsWith('image/') ? 'image' : 'raw';
@@ -21,9 +22,8 @@ export const uploadProjectFile = async (fileBuffer, originalName, mimeType, proj
   }
 };
 
-/**
- * Stream or download project deliverable file
- */
+
+
 export const streamDownload = (filePath, res) => {
   if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.startsWith('data:')) {
     return res.redirect(filePath);

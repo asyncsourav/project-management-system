@@ -1,7 +1,11 @@
+
+
 import { User } from '../models/user.js';
 import { Project } from '../models/project.js';
 import { SupervisorRequest } from '../models/supervisorRequest.js';
 import ErrorHandler from '../middlewares/error.js';
+
+
 
 export const getRequestsForTeacher = async (teacherId) => {
     return await SupervisorRequest.find({ supervisor: teacherId })
@@ -9,9 +13,13 @@ export const getRequestsForTeacher = async (teacherId) => {
         .sort({ createdAt: -1 });
 };
 
+
+
 export const getPendingRequestsCountForTeacher = async (teacherId) => {
     return await SupervisorRequest.countDocuments({ supervisor: teacherId, status: 'pending' });
 };
+
+
 
 export const acceptSupervisorRequestAtomic = async (requestId, teacherId) => {
     const request = await SupervisorRequest.findById(requestId);
@@ -59,6 +67,9 @@ export const acceptSupervisorRequestAtomic = async (requestId, teacherId) => {
     return { request, teacher: updatedTeacher };
 };
 
+
+
+
 export const rejectSupervisorRequest = async (requestId, teacherId) => {
     const request = await SupervisorRequest.findById(requestId);
     if (!request) {
@@ -73,6 +84,8 @@ export const rejectSupervisorRequest = async (requestId, teacherId) => {
     await request.save();
     return request;
 };
+
+
 
 export const getAssignedStudentsForTeacher = async (teacherId) => {
     const teacher = await User.findById(teacherId)

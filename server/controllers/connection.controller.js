@@ -1,7 +1,14 @@
+
+
+
 import { asyncHandler } from '../middlewares/asyncHandler.js';
 import ErrorHandler from '../middlewares/error.js';
+
 import { Connection } from '../models/connection.js';
 import { User } from '../models/user.js';
+
+
+
 
 // Auto-cleanup helper for rejected connection requests older than 10 days
 const cleanupExpiredRejections = async () => {
@@ -15,6 +22,9 @@ const cleanupExpiredRejections = async () => {
         console.error('Error cleaning expired rejections:', e);
     }
 };
+
+
+
 
 // * 1. Explore Users for Connection
 export const exploreUsers = asyncHandler(async (req, res, next) => {
@@ -100,6 +110,9 @@ export const exploreUsers = asyncHandler(async (req, res, next) => {
     });
 });
 
+
+
+
 // * 2. Send Connection Request
 export const sendConnectionRequest = asyncHandler(async (req, res, next) => {
     await cleanupExpiredRejections();
@@ -174,6 +187,9 @@ export const sendConnectionRequest = asyncHandler(async (req, res, next) => {
     });
 });
 
+
+
+
 // * 3. Respond to Connection Request (Accept, Reject, Block)
 export const respondToRequest = asyncHandler(async (req, res, next) => {
     const { connectionId } = req.params;
@@ -219,6 +235,9 @@ export const respondToRequest = asyncHandler(async (req, res, next) => {
     });
 });
 
+
+
+
 // * 4. Get Pending Connection Requests (Incoming & Outgoing)
 export const getPendingRequests = asyncHandler(async (req, res, next) => {
     const currentUserId = req.user._id;
@@ -239,6 +258,8 @@ export const getPendingRequests = asyncHandler(async (req, res, next) => {
         data: { incoming, outgoing, requests: [...incoming, ...outgoing] },
     });
 });
+
+
 
 // * 5. Get Connection Request History
 export const getConnectionHistory = asyncHandler(async (req, res, next) => {
@@ -276,6 +297,9 @@ export const getConnectionHistory = asyncHandler(async (req, res, next) => {
     });
 });
 
+
+
+
 // * 6. Get Blocked Users
 export const getBlockedUsers = asyncHandler(async (req, res, next) => {
     const currentUserId = req.user._id;
@@ -300,6 +324,9 @@ export const getBlockedUsers = asyncHandler(async (req, res, next) => {
     });
 });
 
+
+
+
 // * 7. Unblock User
 export const unblockUser = asyncHandler(async (req, res, next) => {
     const { targetUserId } = req.params;
@@ -320,6 +347,9 @@ export const unblockUser = asyncHandler(async (req, res, next) => {
     });
 });
 
+
+
+
 // * 8. Remove Connection
 export const removeConnection = asyncHandler(async (req, res, next) => {
     const { targetUserId } = req.params;
@@ -337,6 +367,9 @@ export const removeConnection = asyncHandler(async (req, res, next) => {
         message: 'Connection removed successfully',
     });
 });
+
+
+
 
 // * 9. Block User Directly
 export const blockUserDirectly = asyncHandler(async (req, res, next) => {
@@ -368,6 +401,9 @@ export const blockUserDirectly = asyncHandler(async (req, res, next) => {
         message: 'User blocked successfully',
     });
 });
+
+
+
 
 // * 10. Get Active Connected Users (Includes peer connections + supervisor/student relationships)
 export const getMyConnections = asyncHandler(async (req, res, next) => {
@@ -423,3 +459,5 @@ export const getMyConnections = asyncHandler(async (req, res, next) => {
         },
     });
 });
+
+

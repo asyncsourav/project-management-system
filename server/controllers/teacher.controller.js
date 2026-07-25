@@ -1,11 +1,18 @@
+
+
+
 import { asyncHandler } from '../middlewares/asyncHandler.js';
 import ErrorHandler from '../middlewares/error.js';
+
 import { Project } from '../models/project.js';
 import { User } from '../models/user.js';
 import { SupervisorRequest } from '../models/supervisorRequest.js';
 import { Connection } from '../models/connection.js';
+
 import * as teacherService from '../services/teacherService.js';
 import { PROJECT_STATUS } from '../models/project.js';
+
+
 
 // * Get Incoming Supervisor Requests
 export const getIncomingRequests = asyncHandler(async (req, res, next) => {
@@ -17,6 +24,9 @@ export const getIncomingRequests = asyncHandler(async (req, res, next) => {
         data: { requests },
     });
 });
+
+
+
 
 // * Respond to Supervisor Request (Accept or Reject Supervisor Request)
 export const respondToRequest = asyncHandler(async (req, res, next) => {
@@ -54,6 +64,9 @@ export const respondToRequest = asyncHandler(async (req, res, next) => {
     }
 });
 
+
+
+
 // * Get Assigned Students
 export const getAssignedStudents = asyncHandler(async (req, res, next) => {
     const students = await teacherService.getAssignedStudentsForTeacher(req.user._id);
@@ -64,6 +77,9 @@ export const getAssignedStudents = asyncHandler(async (req, res, next) => {
         data: { students },
     });
 });
+
+
+
 
 // * Helper to get all student IDs related to a teacher (via requests, supervisor link, or assigned list)
 const getTeacherRelatedStudentIds = async (teacherId) => {
@@ -82,6 +98,9 @@ const getTeacherRelatedStudentIds = async (teacherId) => {
 
     return supervisedStudents.map(s => s._id);
 };
+
+
+
 
 // * Get Supervised Projects (Fetch all projects where teacher is supervisor OR student requested teacher)
 export const getSupervisedProjects = asyncHandler(async (req, res, next) => {
@@ -105,6 +124,9 @@ export const getSupervisedProjects = asyncHandler(async (req, res, next) => {
         data: { projects },
     });
 });
+
+
+
 
 // * Review Proposal Status (Teachers can ONLY approve proposals, never reject)
 export const reviewProposal = asyncHandler(async (req, res, next) => {
@@ -154,6 +176,9 @@ export const reviewProposal = asyncHandler(async (req, res, next) => {
         data: { project },
     });
 });
+
+
+
 
 // * Complete Project (Teacher / Admin Only)
 export const completeProject = asyncHandler(async (req, res, next) => {
@@ -212,6 +237,9 @@ export const completeProject = asyncHandler(async (req, res, next) => {
     });
 });
 
+
+
+
 // * Get Teacher Dashboard Stats (Fully Populated & Bug-Free Metrics)
 export const getTeacherDashboardStats = asyncHandler(async (req, res, next) => {
     const teacherId = req.user._id;
@@ -266,6 +294,9 @@ export const getTeacherDashboardStats = asyncHandler(async (req, res, next) => {
     });
 });
 
+
+
+
 // * Drop Supervision / Resign as Supervisor
 export const dropSupervision = asyncHandler(async (req, res, next) => {
     const { studentId } = req.params;
@@ -297,3 +328,5 @@ export const dropSupervision = asyncHandler(async (req, res, next) => {
         message: 'Supervision dropped successfully. Student project is now unassigned.',
     });
 });
+
+

@@ -1,7 +1,11 @@
+
+
+
 import { asyncHandler } from './asyncHandler.js';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/user.js';
 import ErrorHandler from './error.js';
+
 
 export const isAuthenticated = asyncHandler(async (req, res, next) => {
     let token;
@@ -30,7 +34,7 @@ export const isAuthenticated = asyncHandler(async (req, res, next) => {
             return next(new ErrorHandler("User account has been deleted", 403));
         }
 
-        if (user.status === 'suspended') {
+        if (user.status !== 'active') {
             return next(new ErrorHandler("Your account has been suspended. Please contact admin.", 403));
         }
 
@@ -44,6 +48,8 @@ export const isAuthenticated = asyncHandler(async (req, res, next) => {
     }
 });
 
+
+
 export const isAuthorized = (...roles) => {
     return asyncHandler(async (req, res, next) => {
         if (!req.user || !roles.includes(req.user.role)) {
@@ -52,3 +58,5 @@ export const isAuthorized = (...roles) => {
         next();
     });
 };
+
+

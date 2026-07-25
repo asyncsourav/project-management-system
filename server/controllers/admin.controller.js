@@ -1,9 +1,16 @@
+
+
 import { asyncHandler } from '../middlewares/asyncHandler.js';
 import ErrorHandler from '../middlewares/error.js';
 import { User } from '../models/user.js';
 import { Project } from '../models/project.js';
+
 import * as userService from '../services/userService.js';
 import * as projectService from '../services/projectService.js';
+
+
+
+
 
 // * Create Student
 export const createStudent = asyncHandler(async (req, res, next) => {
@@ -33,6 +40,9 @@ export const createStudent = asyncHandler(async (req, res, next) => {
     });
 });
 
+
+
+
 // * Update Student
 export const updateStudent = asyncHandler(async (req, res, next) => {
     const { id } = req.params;
@@ -55,6 +65,9 @@ export const updateStudent = asyncHandler(async (req, res, next) => {
     });
 });
 
+
+
+
 // * Delete Student (Soft Delete)
 export const deleteStudent = asyncHandler(async (req, res, next) => {
     const { id } = req.params;
@@ -62,7 +75,7 @@ export const deleteStudent = asyncHandler(async (req, res, next) => {
         id,
         { isDeleted: true, status: 'archived' },
         { new: true, runValidators: false }
-    );
+    )
     if (!user || user.role !== 'Student') {
         return next(new ErrorHandler('Student not found', 404));
     }
@@ -72,6 +85,9 @@ export const deleteStudent = asyncHandler(async (req, res, next) => {
         message: 'Student archived/deleted successfully'
     });
 });
+
+
+
 
 // * Create Teacher
 export const createTeacher = asyncHandler(async (req, res, next) => {
@@ -107,6 +123,9 @@ export const createTeacher = asyncHandler(async (req, res, next) => {
     });
 });
 
+
+
+
 // * Update Teacher
 export const updateTeacher = asyncHandler(async (req, res, next) => {
     const { id } = req.params;
@@ -133,6 +152,9 @@ export const updateTeacher = asyncHandler(async (req, res, next) => {
     });
 });
 
+
+
+
 // * Delete Teacher (Soft Delete)
 export const deleteTeacher = asyncHandler(async (req, res, next) => {
     const { id } = req.params;
@@ -150,6 +172,9 @@ export const deleteTeacher = asyncHandler(async (req, res, next) => {
         message: 'Teacher archived/deleted successfully'
     });
 });
+
+
+
 
 // * Toggle User Status (Active / Pending / Suspended / Archived)
 export const toggleUserStatus = asyncHandler(async (req, res, next) => {
@@ -177,9 +202,12 @@ export const toggleUserStatus = asyncHandler(async (req, res, next) => {
     });
 });
 
-// * Get All Users (With Pagination, Search, Filter)
+
+
+
+// * Get All Users (With Search, Filter)
 export const getAllUsers = asyncHandler(async (req, res, next) => {
-    const { role, search, status, page = 1, limit = 50 } = req.query;
+    const { role, search, status } = req.query;
 
     const query = { isDeleted: false, role: { $ne: 'Admin' } };
     if (role && ['Student', 'Teacher'].includes(role)) {
@@ -208,6 +236,9 @@ export const getAllUsers = asyncHandler(async (req, res, next) => {
     });
 });
 
+
+
+
 // * Get All Projects for Admin Oversight
 export const getAllProjects = asyncHandler(async (req, res, next) => {
     const { projects } = await projectService.getAllProjects();
@@ -218,6 +249,9 @@ export const getAllProjects = asyncHandler(async (req, res, next) => {
         data: { projects },
     });
 });
+
+
+
 
 // * Admin Review Proposal (Approve / Reject)
 export const reviewProposalAdmin = asyncHandler(async (req, res, next) => {
@@ -245,6 +279,9 @@ export const reviewProposalAdmin = asyncHandler(async (req, res, next) => {
         data: { project },
     });
 });
+
+
+
 
 // * Assign Supervisor to Student Project
 export const assignSupervisor = asyncHandler(async (req, res, next) => {
@@ -290,6 +327,9 @@ export const assignSupervisor = asyncHandler(async (req, res, next) => {
     });
 });
 
+
+
+
 // * Admin Dashboard High-Level Stats
 export const getAdminDashboardStats = asyncHandler(async (req, res, next) => {
     const [totalStudents, totalTeachers, totalProjects, pendingProposals, activeSupervisions] = await Promise.all([
@@ -311,3 +351,5 @@ export const getAdminDashboardStats = asyncHandler(async (req, res, next) => {
         },
     });
 });
+
+

@@ -1,8 +1,11 @@
+
+
+
 import { v2 as cloudinary } from 'cloudinary';
 
-/**
- * Streams in-memory file buffer directly to Cloudinary CDN with Data-URI fallback
- */
+
+
+
 export const uploadToCloudinary = (fileBuffer, folder = 'academic_platform/misc', resourceType = 'auto', mimeType = 'image/png') => {
   return new Promise((resolve) => {
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;

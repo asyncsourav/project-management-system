@@ -1,8 +1,13 @@
+
+
+
 import bcrypt from 'bcrypt';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import validator from 'validator';
+
+
 
 const userSchema = new mongoose.Schema({
     name: {
@@ -81,10 +86,16 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true }
 );
 
+
+
+
 // Indexes based on query patterns
 userSchema.index({ role: 1 });
 userSchema.index({ status: 1, isDeleted: 1 });
 userSchema.index({ department: 1 });
+
+
+
 
 userSchema.pre("save", async function () {
     if (!this.isModified("password")) {
@@ -92,6 +103,9 @@ userSchema.pre("save", async function () {
     }
     this.password = await bcrypt.hash(this.password, 10);
 });
+
+
+
 
 userSchema.methods.generateAccessToken = function () {
     return jwt.sign(
@@ -101,6 +115,9 @@ userSchema.methods.generateAccessToken = function () {
     );
 };
 
+
+
+
 userSchema.methods.generateRefreshToken = function () {
     return jwt.sign(
         { id: this._id },
@@ -109,10 +126,16 @@ userSchema.methods.generateRefreshToken = function () {
     );
 };
 
+
+
+
 userSchema.methods.comparePassword = async function (enteredPassword) {
     if (!enteredPassword || !this.password) return false;
     return await bcrypt.compare(enteredPassword, this.password);
 };
+
+
+
 
 userSchema.methods.generateResetPasswordToken = function () {
     const resetToken = crypto.randomBytes(20).toString('hex');
@@ -123,4 +146,7 @@ userSchema.methods.generateResetPasswordToken = function () {
     return resetToken;
 };
 
+
+
 export const User = mongoose.models.User || mongoose.model('User', userSchema);
+

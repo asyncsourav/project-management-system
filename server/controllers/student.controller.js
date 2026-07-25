@@ -1,18 +1,25 @@
+
+
 import { asyncHandler } from '../middlewares/asyncHandler.js';
 import ErrorHandler from '../middlewares/error.js';
+
 import { User } from '../models/user.js';
 import { Project } from '../models/project.js';
 import { SupervisorRequest } from '../models/supervisorRequest.js';
+import { PROJECT_STATUS } from '../models/project.js';
+
 import * as projectService from '../services/projectService.js';
 import * as requestService from '../services/requestService.js';
 import * as fileService from '../services/fileService.js';
-import { PROJECT_STATUS } from '../models/project.js';
+
+
+
 
 // * Get Student Project & History
 export const getStudentProject = asyncHandler(async (req, res, next) => {
     const studentId = req.user._id;
 
-    // Fetch all project proposals for student (sorted newest first)
+    // sorted newest first
     const projects = await Project.find({ student: studentId, isDeleted: false })
         .sort({ createdAt: -1 })
         .populate('supervisor', 'name email avatar department');
@@ -30,6 +37,9 @@ export const getStudentProject = asyncHandler(async (req, res, next) => {
         },
     });
 });
+
+
+
 
 // * Submit or Update Project Proposal (Immutable once submitted/approved)
 export const submitProposal = asyncHandler(async (req, res, next) => {
@@ -78,7 +88,10 @@ export const submitProposal = asyncHandler(async (req, res, next) => {
     });
 });
 
-// * Upload Files to Project (Policy Guarded)
+
+
+
+// * Upload Files to Project 
 export const uploadFiles = asyncHandler(async (req, res, next) => {
     const { projectId } = req.params;
     const studentId = req.user._id;
@@ -113,6 +126,9 @@ export const uploadFiles = asyncHandler(async (req, res, next) => {
     });
 });
 
+
+
+
 // * Get Available Supervisors (With Accurate assignedCount, maxStudents, and isAvailable Flag)
 export const getAvailableSupervisors = asyncHandler(async (req, res, next) => {
     const supervisors = await User.find({ role: 'Teacher', status: 'active', isDeleted: false })
@@ -140,6 +156,9 @@ export const getAvailableSupervisors = asyncHandler(async (req, res, next) => {
     });
 });
 
+
+
+
 // * Get Assigned Supervisor
 export const getSupervisor = asyncHandler(async (req, res, next) => {
     const user = await User.findById(req.user._id).populate('supervisor', 'name email department avatar maxStudents assignedStudents');
@@ -150,6 +169,9 @@ export const getSupervisor = asyncHandler(async (req, res, next) => {
         data: { supervisor: user.supervisor || null },
     });
 });
+
+
+
 
 // * Get Pending & Historical Supervisor Requests for Student
 export const getPendingSupervisorRequest = asyncHandler(async (req, res, next) => {
@@ -172,7 +194,10 @@ export const getPendingSupervisorRequest = asyncHandler(async (req, res, next) =
     });
 });
 
-// * Request Supervisor (Concurrency Safe, Proposal Approval Guarded & Pending Check)
+
+
+
+// * Request Supervisor 
 export const requestSupervisor = asyncHandler(async (req, res, next) => {
     const { teacherId, message, notes } = req.body;
     const studentId = req.user._id;
@@ -232,6 +257,9 @@ export const requestSupervisor = asyncHandler(async (req, res, next) => {
     });
 });
 
+
+
+
 // * Get Student Dashboard Stats
 export const getDashboardStats = asyncHandler(async (req, res, next) => {
     const studentId = req.user._id;
@@ -256,6 +284,9 @@ export const getDashboardStats = asyncHandler(async (req, res, next) => {
     });
 });
 
+
+
+
 // * Get Project Feedback
 export const getFeedback = asyncHandler(async (req, res, next) => {
     const { projectId } = req.params;
@@ -274,6 +305,9 @@ export const getFeedback = asyncHandler(async (req, res, next) => {
         data: { feedback: sortedFeedback },
     });
 });
+
+
+
 
 // * Download Project File
 export const downloadFile = asyncHandler(async (req, res, next) => {
@@ -296,3 +330,6 @@ export const downloadFile = asyncHandler(async (req, res, next) => {
 
     fileService.streamDownload(file.fileUrl, res, file.originalName);
 });
+
+
+

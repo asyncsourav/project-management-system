@@ -1,5 +1,9 @@
+
+
 import crypto from 'crypto';
 import { RefreshToken } from '../models/refreshToken.js';
+
+
 
 export const generateTokenResponse = async (user, statusCode, message, req, res) => {
     const accessToken = user.generateAccessToken();
@@ -8,10 +12,9 @@ export const generateTokenResponse = async (user, statusCode, message, req, res)
     // Hash refresh token for DB storage
     const tokenHash = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
 
-    const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
-    const userAgent = req.headers['user-agent'] || 'unknown';
+    const ip = req.ip;
+    const userAgent = req.headers['user-agent'];
 
-    // Refresh token expires in 7 days
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     // Persist refresh token session metadata
@@ -66,3 +69,5 @@ export const generateTokenResponse = async (user, statusCode, message, req, res)
         },
     });
 };
+
+

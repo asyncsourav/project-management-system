@@ -1,10 +1,17 @@
+
+
+
 import ErrorHandler from '../middlewares/error.js';
 import { Project } from '../models/project.js';
 import { uploadProjectFile } from './fileService.js';
 
+
+
 export const getProjectByStudent = async (studentId) => {
     return await Project.findOne({ student: studentId, isDeleted: false }).sort({ createdAt: -1 });
 };
+
+
 
 export const createProject = async (projectData) => {
     try {
@@ -16,6 +23,8 @@ export const createProject = async (projectData) => {
     }
 };
 
+
+
 export const getProjectById = async (id) => {
     try {
         const project = await Project.findById(id)
@@ -26,6 +35,8 @@ export const getProjectById = async (id) => {
         throw new ErrorHandler('Error fetching project: ' + error.message, 500);
     }
 };
+
+
 
 export const addFilesToProject = async (projectId, files) => {
     try {
@@ -48,6 +59,9 @@ export const addFilesToProject = async (projectId, files) => {
     }
 };
 
+
+
+
 export const getAllProjects = async () => {
     try {
         const projects = await Project.find({ isDeleted: false })
@@ -59,3 +73,4 @@ export const getAllProjects = async () => {
         throw new ErrorHandler('Error fetching projects: ' + error.message, 500);
     }
 };
+

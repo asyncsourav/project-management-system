@@ -1,15 +1,23 @@
+
+
+
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import { asyncHandler } from '../middlewares/asyncHandler.js';
+
 import ErrorHandler from '../middlewares/error.js';
+import { asyncHandler } from '../middlewares/asyncHandler.js';
+
 import { User } from '../models/user.js';
 import { RefreshToken } from '../models/refreshToken.js';
+
 import { generateForgotPasswordEmailTemplate } from '../utils/emailTemplates.js';
 import { generateTokenResponse } from '../utils/generateToken.js';
 import { sendEmail } from '../services/emailService.js';
 import { uploadToCloudinary } from '../config/cloudinary.js';
 
-// * Register User (Self-registration sets status to 'pending' awaiting Admin approval)
+
+
+// * Register User (Self-registration sets status to 'pending' - unless admin approves account)
 export const registerUser = asyncHandler(async (req, res, next) => {
     const { name, email, password, role, department } = req.body;
 
@@ -17,7 +25,7 @@ export const registerUser = asyncHandler(async (req, res, next) => {
         return next(new ErrorHandler('Please provide name, email, password, and role', 400));
     }
 
-    const allowedRoles = ['Student', 'Teacher', 'Admin'];
+    const allowedRoles = ['Student', 'Teacher'];
     if (!allowedRoles.includes(role)) {
         return next(new ErrorHandler('Invalid role specified', 400));
     }
@@ -52,6 +60,9 @@ export const registerUser = asyncHandler(async (req, res, next) => {
         }
     });
 });
+
+
+
 
 // * Login User
 export const login = asyncHandler(async (req, res, next) => {
@@ -90,6 +101,9 @@ export const login = asyncHandler(async (req, res, next) => {
 
     await generateTokenResponse(user, 200, 'Logged in successfully', req, res);
 });
+
+
+
 
 // * Refresh Access Token (Rotation Flow)
 export const refreshToken = asyncHandler(async (req, res, next) => {
@@ -133,6 +147,9 @@ export const refreshToken = asyncHandler(async (req, res, next) => {
     await generateTokenResponse(user, 200, 'Token refreshed successfully', req, res);
 });
 
+
+
+
 // * Get Current Authenticated User
 export const getUser = asyncHandler(async (req, res, next) => {
     const user = await User.findById(req.user._id)
@@ -146,6 +163,9 @@ export const getUser = asyncHandler(async (req, res, next) => {
         data: { user },
     });
 });
+
+
+
 
 // * Logout Current Device
 export const logout = asyncHandler(async (req, res, next) => {
@@ -176,6 +196,9 @@ export const logout = asyncHandler(async (req, res, next) => {
         });
 });
 
+    
+
+
 // * Logout All Devices
 export const logoutAll = asyncHandler(async (req, res, next) => {
     await RefreshToken.updateMany(
@@ -199,6 +222,9 @@ export const logoutAll = asyncHandler(async (req, res, next) => {
             message: 'Logged out from all active sessions successfully',
         });
 });
+
+
+
 
 // * Forgot Password Request
 export const forgotPassword = asyncHandler(async (req, res, next) => {
@@ -236,6 +262,9 @@ export const forgotPassword = asyncHandler(async (req, res, next) => {
     }
 });
 
+
+
+
 // * Reset Password With Token
 export const resetPassword = asyncHandler(async (req, res, next) => {
     const token = req.params.token || req.body.token || req.query.token;
@@ -270,6 +299,9 @@ export const resetPassword = asyncHandler(async (req, res, next) => {
     await generateTokenResponse(user, 200, "Password reset successfully", req, res);
 });
 
+
+
+
 // * Change Password (Authenticated User)
 export const changePassword = asyncHandler(async (req, res, next) => {
     const { oldPassword, newPassword } = req.body;
@@ -294,6 +326,9 @@ export const changePassword = asyncHandler(async (req, res, next) => {
     });
 });
 
+
+
+
 // * Upload Profile Avatar (Cloudinary)
 export const updateAvatar = asyncHandler(async (req, res, next) => {
     if (!req.file) {
@@ -316,3 +351,5 @@ export const updateAvatar = asyncHandler(async (req, res, next) => {
         data: { avatar: avatarUrl, user },
     });
 });
+
+
