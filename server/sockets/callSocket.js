@@ -30,10 +30,7 @@ export const initializeCallSockets = (io) => {
 
         socket.join(userId);
 
-        // ==========================================
         // ONE-ON-ONE WEBRTC CALL SIGNALS
-        // ==========================================
-
         socket.on('initiate_call', async (data) => {
             const { recipientId, callType, offer } = data; // callType: 'one_to_one_voice' or 'one_to_one_video'
             if (!recipientId) return;
